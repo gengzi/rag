@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  markitdown-api:
+    build: .
+    ports:
+      - "8050:8050"
+    volumes:
+      - //F/baidu/document/wordtomd:/app/data
+    environment:
+      - OPENAI_API_KEY=your_api_key  # 若启用图片描述，需配置大模型密钥
+      - TZ=Asia/Shanghai  # 统一时区（与 Dockerfile 时区配置呼应，避免时间偏差）
+    restart: unless-stopped
+    working_dir: /app  # 明确容器内工作目录（与 Dockerfile 保持一致，增强可读性）

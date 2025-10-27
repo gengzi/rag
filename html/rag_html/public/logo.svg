@@ -1,0 +1,69 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义渐变和滤镜 -->
+  <defs>
+    <!-- 背景渐变 - 专业蓝色 -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+    
+    <!-- 元素渐变 -->
+    <linearGradient id="elementGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#E5E7EB" stop-opacity="0.7" />
+    </linearGradient>
+    
+    <!-- 光效滤镜 -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- 主背景圆形 -->
+  <circle cx="60" cy="60" r="50" fill="url(#bgGradient)" />
+  
+  <!-- 装饰性圆环和几何元素 -->
+  <circle cx="60" cy="60" r="53" fill="none" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5" />
+  <circle cx="60" cy="60" r="47" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-dasharray="6,4" opacity="0.3" />
+  
+  <!-- RAG 概念图形表达 -->
+  <g filter="url(#glow)">
+    <!-- 代表文档检索 (Retrieval) 的图形 -->
+    <g transform="translate(35, 40)">
+      <!-- 文档图标 -->
+      <rect x="0" y="0" width="25" height="30" rx="3" ry="3" fill="url(#elementGradient)" />
+      <!-- 文档线条 -->
+      <line x1="5" y1="7" x2="20" y2="7" stroke="#2563EB" stroke-width="1.5" opacity="0.7" />
+      <line x1="5" y1="12" x2="18" y2="12" stroke="#2563EB" stroke-width="1.5" opacity="0.7" />
+      <line x1="5" y1="17" x2="15" y2="17" stroke="#2563EB" stroke-width="1.5" opacity="0.7" />
+      <line x1="5" y1="22" x2="12" y2="22" stroke="#2563EB" stroke-width="1.5" opacity="0.7" />
+    </g>
+    
+    <!-- 代表增强 (Augmentation) 的连接图形 -->
+    <path d="M60 50 C70 55 75 45 80 50" fill="none" stroke="url(#elementGradient)" stroke-width="2" stroke-linecap="round" />
+    
+    <!-- 代表生成 (Generation) 和 AI 的图形 -->
+    <g transform="translate(65, 35)">
+      <!-- 思维气泡组，表示AI生成 -->
+      <circle cx="0" cy="0" r="8" fill="url(#elementGradient)" opacity="0.9" />
+      <circle cx="15" cy="8" r="6" fill="url(#elementGradient)" opacity="0.8" />
+      <circle cx="23" cy="15" r="4" fill="url(#elementGradient)" opacity="0.7" />
+      
+      <!-- 连接线 -->
+      <path d="M5 5 C9 9 13 10 17 11" fill="none" stroke="url(#elementGradient)" stroke-width="1" stroke-linecap="round" />
+    </g>
+  </g>
+  
+  <!-- 抽象技术装饰元素 -->
+  <circle cx="30" cy="30" r="3" fill="#FFFFFF" opacity="0.2" />
+  <circle cx="90" cy="30" r="3" fill="#FFFFFF" opacity="0.2" />
+  <circle cx="30" cy="90" r="3" fill="#FFFFFF" opacity="0.2" />
+  <circle cx="90" cy="90" r="3" fill="#FFFFFF" opacity="0.2" />
+  
+  <!-- 技术线条装饰 -->
+  <path d="M35 25 L45 35" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.2" />
+  <path d="M85 25 L75 35" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.2" />
+  <path d="M35 95 L45 85" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.2" />
+  <path d="M85 95 L75 85" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.2" />
+</svg>

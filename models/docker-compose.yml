@@ -1,0 +1,14 @@
+services:
+  reranker:
+    build: .
+    ports:
+      - "8020:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0

@@ -1,6 +1,6 @@
 package com.gengzi.utils;
 
-import com.gengzi.security.UserPrincipal;
+import com.gengzi.web.security.UserPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 

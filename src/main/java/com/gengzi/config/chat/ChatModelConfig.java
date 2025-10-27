@@ -1,6 +1,6 @@
 package com.gengzi.config.chat;
 
-import com.gengzi.reranker.DefaultRerankModel;
+import com.gengzi.model.reranker.DefaultRerankModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;

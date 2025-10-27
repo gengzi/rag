@@ -1,7 +1,7 @@
 package com.gengzi.config.chat;
 
 
-import com.gengzi.advisor.MessageChatRecordAdvisor;
+import com.gengzi.rag.advisor.MessageChatRecordAdvisor;
 import com.gengzi.dao.repository.ConversationRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;

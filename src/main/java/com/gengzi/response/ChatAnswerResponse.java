@@ -7,6 +7,8 @@ import lombok.Data;
 public class ChatAnswerResponse {
 
 
+    private String chatid;
+
     private String answer;
 
 

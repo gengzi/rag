@@ -9,6 +9,5 @@ import org.springframework.scheduling.annotation.EnableAsync;
 public class RagServerApplication {
     public static void main(String[] args) {
         SpringApplication.run(RagServerApplication.class, args);
-
     }
 }

@@ -64,6 +64,8 @@ model:
     url: http://localhost:8885/layout-parsing
   markItDown:
     url: http://localhost:8050/convert/fileurl
+  tts:
+    url: http://localhost:8092/paddlespeech/tts/streaming
 
 ## 对象存储相关配置
 s3:
@@ -150,3 +152,4 @@ logging:
   # 自定义 Logback 配置（关键：分离 error 日志）
   config: classpath:logback-spring.xml  # 引入外部配置文件
 trace: true
+debug: false

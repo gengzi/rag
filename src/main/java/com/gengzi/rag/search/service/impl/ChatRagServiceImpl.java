@@ -140,6 +140,7 @@ public class ChatRagServiceImpl implements ChatRagService {
                     List<Document> documents = (List<Document>) context.get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
                     RagReference ragReference = RagReference.listDocumentToRagReference(documents);
                     chatAnswerResponse.setReference(ragReference);
+                    chatAnswerResponse.setChatid(chatId);
                     done.setReference(ragReference);
                     // 返回用户问题后，还需要拼接上参考的文档信息，文档链接
                     return chatAnswerResponse;

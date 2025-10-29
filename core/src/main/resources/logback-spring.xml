@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 基础配置：日志格式、路径变量 -->
+    <property name="LOG_PATH" value="logs"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"/>
+
+    <!-- 1. 主日志 Appender（包含所有级别，除了 error 会被过滤到单独文件） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/rg-server.log</file>
+
+        <!-- 滚动策略（与 yml 配置保持一致） -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/rag-server.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>3MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+
+        <!-- 过滤：只输出非 error 级别日志（避免重复） -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>DENY</onMatch>  <!-- 拒绝 error 级别，不写入主日志 -->
+            <onMismatch>ACCEPT</onMismatch>  <!-- 接受其他级别 -->
+        </filter>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 2. 错误日志 Appender（只输出 error 级别） -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/rag-server-error.log</file>  <!-- 错误日志单独文件 -->
+
+        <!-- 错误日志滚动策略（可与主日志保持一致） -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/rag-server-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>3MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+
+        <!-- 过滤：只接受 error 级别 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>  <!-- 接受 error 级别 -->
+            <onMismatch>DENY</onMismatch>  <!-- 拒绝其他级别 -->
+        </filter>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 控制台输出（可选，方便开发调试） -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 根日志配置：同时输出到主日志、错误日志和控制台 -->
+    <root level="info">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="CONSOLE"/>  <!-- 生产环境可移除 -->
+    </root>
+
+    <!-- 你的监听器包单独设置为 debug 级别 -->
+    <logger name="com.gengzi" level="debug" additivity="false">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+</configuration>

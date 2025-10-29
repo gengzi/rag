@@ -1,2 +1,5 @@
 rootProject.name = 'rag'
+include 'chat'
+include 'core'
+include 'manager'
 

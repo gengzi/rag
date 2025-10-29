@@ -1,0 +1,7 @@
+flask==2.3.3
+torch>=2.0.0
+torchaudio>=2.0.0
+# 替换原来的 zipvoice 安装方式，指定只安装 zipvoice 模块
+zipvoice @ git+https://github.com/k2-fsa/ZipVoice.git#subdirectory=zipvoice
+huggingface-hub>=0.19.0
+numpy

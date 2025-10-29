@@ -1,38 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="a3aab5e2-873d-4c24-82a8-f43a3cb893bd" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/../models/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/app.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/docker-compose.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/markitdown-mcp/app/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/markitdown-mcp/app/converter.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/markitdown-mcp/app/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/markitdown-mcp/docker.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/markitdown-mcp/requirements.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../models/requirements.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../src/main/resources/logback-spring.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/../build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../html/rag_html/src/app/dashboard/rag-evaluation/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../html/rag_html/src/app/dashboard/rag-evaluation/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../opt.md" beforeDir="false" afterPath="$PROJECT_DIR$/../opt.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/java/com/gengzi/config/chat/ChatModeConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/com/gengzi/config/chat/ChatModeConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/java/com/gengzi/search/advisor/RagRetrievalAugmenttationAdvisor.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/com/gengzi/search/advisor/RagRetrievalAugmenttationAdvisor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/java/com/gengzi/ui/service/impl/EvaluateServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/com/gengzi/ui/service/impl/EvaluateServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/java/com/gengzi/vector/es/ExtendedElasticsearchVectorStore.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/com/gengzi/vector/es/ExtendedElasticsearchVectorStore.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../doc/参考/img.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../doc/参考/jd.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../models/tts/Test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/测试/myTest.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../doc/opt.md" beforeDir="false" afterPath="$PROJECT_DIR$/../doc/opt.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/py.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/py.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../src/main/java/com/gengzi/RagServerApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main/java/com/gengzi/RagServerApplication.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Jupyter Notebook" />
+      </list>
+    </option>
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 6
-}]]></component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
   <component name="ProjectId" id="34NiZZNznNw8i6Cdi8mz8eR4z8O" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -42,9 +45,15 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/work/git/loans/loan-Rag/models/markitdown-mcp",
+    "last_opened_file_path": "D:/work/rag/models/tts",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -65,6 +74,7 @@
       <option name="presentableId" value="Default" />
       <updated>1761060486947</updated>
       <workItem from="1761060488077" duration="39000" />
+      <workItem from="1761567797980" duration="4353000" />
     </task>
     <servers />
   </component>

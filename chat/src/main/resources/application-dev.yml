@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true # 打印SQL语句（开发环境用）
+    properties:
+      hibernate:
+        format_sql: true  # 格式化SQL
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # 指定MySQL方言
+
+
+## 第三方模型参数配置
+model:
+  tts:
+    url: http://localhost:8092/paddlespeech/tts/streaming
+
+## jwt相关配置
+user:
+  jwt:
+    jwtSecret: pwKtHLwn5wurpahhR4tZjNdEfXE3pG0rQweG/4tbV0k1AV93ji9CLxfuGWR8rRtgqvJrE3/M3RtAHQngK2QYIA==
+    jwtExpirationMs: 86400000

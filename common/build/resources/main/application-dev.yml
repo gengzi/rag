@@ -1,7 +1,0 @@
-# 开发环境通用配置：日志级别调为 DEBUG，便于调试
-logging:
-  level:
-    root: DEBUG
-    org.springframework: DEBUG
-
-

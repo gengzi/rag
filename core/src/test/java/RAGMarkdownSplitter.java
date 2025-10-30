@@ -2,6 +2,7 @@ import org.commonmark.ext.gfm.tables.TableBlock;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.NodeRenderer;
+import org.commonmark.renderer.markdown.MarkdownRenderer;
 
 import java.util.*;
 import java.util.regex.Matcher;

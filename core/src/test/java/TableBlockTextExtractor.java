@@ -1,3 +1,5 @@
+import org.commonmark.ext.gfm.tables.TableBlock;
+import org.commonmark.ext.gfm.tables.TableCell;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Node;
 

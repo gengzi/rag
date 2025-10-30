@@ -27,3 +27,11 @@ replay_pid*
 /output/
 /logs/
 /.idea/
+/models/tts/
+/common/build/
+/chat/build/
+/dao/build/
+/py/.idea/
+/models/markitdown-mcp/.idea/
+/models/markitdown-mcp/.venv/
+/models/tts/.idea/

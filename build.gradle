@@ -8,6 +8,7 @@ group = 'com.gengzi'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = 1.17
 
+
 subprojects {
     group = 'com.gengzi'
     version = '0.0.1-SNAPSHOT'
@@ -16,9 +17,11 @@ subprojects {
     repositories {
         mavenCentral()
     }
+//    if (project.name != 'common') {
     // 子项目应用 Spring Boot 插件（通过 apply 方式，因为 plugins 块不能直接嵌套）
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
+//    }
 }
 
 allprojects {
@@ -38,9 +41,10 @@ dependencyManagement {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
     }
     dependencies {
-
+        dependency 'cn.hutool:hutool-all:5.8.16'
     }
 }
+
 
 test {
     useJUnitPlatform()

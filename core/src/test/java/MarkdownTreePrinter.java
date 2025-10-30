@@ -1,6 +1,10 @@
 import org.commonmark.ext.gfm.tables.TableBlock;
 import org.commonmark.ext.gfm.tables.TableCell;
 import org.commonmark.ext.gfm.tables.TableRow;
+import org.commonmark.node.Document;
+import org.commonmark.node.Heading;
+import org.commonmark.node.*;
+import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
 
 public class MarkdownTreePrinter {

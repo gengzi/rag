@@ -3,6 +3,8 @@ import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.ModelType;
 import org.commonmark.ext.gfm.tables.TableBlock;
 import org.commonmark.ext.gfm.tables.TablesExtension;
+import org.commonmark.*;
+import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
 
 import java.util.ArrayList;

@@ -2,10 +2,7 @@ package com.gengzi.rag.search.advisor;
 
 
 import com.gengzi.rag.search.processors.RagDocumentPostProcessor;
-import com.gengzi.rag.search.query.QueryTranslation;
-import com.gengzi.rag.search.query.RagContextualQueryAugmenter;
-import com.gengzi.rag.search.query.RewriteQueryTransformerWithHistory;
-import com.gengzi.rag.search.query.ToolsRagTransformer;
+import com.gengzi.rag.search.query.*;
 import com.gengzi.rag.search.template.RagPromptTemplate;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
@@ -52,8 +49,16 @@ public class RagRetrievalAugmenttationAdvisor {
     @Bean("ragAdvisor")
     public Advisor createAdvisor() {
 
+        // 输入查询重写
         RewriteQueryTransformerWithHistory rewriteQueryTransformerWithHistory = RewriteQueryTransformerWithHistory.builder()
                 .chatClientBuilder(ChatClient.builder(chatModel)).build();
+
+        // 指令增强
+        RewriteQueryTransformerInstructionAware rewriteQueryTransformerInstructionAware = RewriteQueryTransformerInstructionAware.builder().promptTemplate(ragPromptTemplate.ragPromptTemplate())
+                .chatClientBuilder(ChatClient.builder(chatModel))
+                .isDynamicInstruction(true)
+                .build();
+
         // 查询压缩，将之前的历史对话和当前问题压缩为一个独立的查询
         CompressionQueryTransformer compressionQueryTransformer =
                 CompressionQueryTransformer.builder().chatClientBuilder(ChatClient.builder(chatModel)).build();
@@ -61,7 +66,7 @@ public class RagRetrievalAugmenttationAdvisor {
         Advisor retrievalAugmentationAdvisor = RetrievalAugmentationAdvisor.builder()
                 // 用于转换输入查询，使得更有效的执行检索
 //                .queryTransformers(toolsRagTransformer, rewriteQueryTransformerWithHistory)
-                .queryTransformers(rewriteQueryTransformerWithHistory)
+                .queryTransformers(rewriteQueryTransformerWithHistory, rewriteQueryTransformerInstructionAware)
                 // 检索器
                 .documentRetriever(VectorStoreDocumentRetriever.builder()
                         // 相似度

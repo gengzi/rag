@@ -106,6 +106,7 @@ public class ChatRagServiceImpl implements ChatRagService {
         // 获取用户信息
         // 获取用户问题
         String question = ragChatReq.getQuestion();
+
         // 会话id
         String conversationId = ragChatReq.getConversationId();
         String chatId = IdUtils.generate();

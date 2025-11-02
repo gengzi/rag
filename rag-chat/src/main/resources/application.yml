@@ -1,0 +1,6 @@
+spring:
+  profiles:
+    active: dev  # 加载 core/application-dev.yml + common/application-dev.yml
+
+server:
+  port: 8086

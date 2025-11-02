@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springAiAlibabaVersion', "1.0.0.4")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
+    }
+    dependencies {
+
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30' // 注解处理器，用于生成代码
+
+    implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+
+}
+
+test {
+    useJUnitPlatform()
+}

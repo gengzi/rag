@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+bootJar {
+    enabled = false
+}
+jar {
+    enabled = true
+}
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+    dependencies {
+
+    }
+}
+
+dependencies {
+    // 1. 引入 common（实体类可能依赖 DTO 或工具）
+    implementation project(':rag-common')
+
+    // 2. Spring Boot 数据依赖
+    // 👉 如果用 Spring Data JPA:
+    implementation 'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // 3. 数据库驱动（如 MySQL）
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // 4. Lombok（可选）
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // 5. 如果需要测试
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}

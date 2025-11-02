@@ -91,3 +91,25 @@ tasklist | findstr 1234
 关闭服务
 
 ```
+
+
+### 优化点
+#### 优化点1  指令感知嵌入（Instruction-aware Embedding 
+* 针对qwen embedding 在查询语句时增加 instruction （指令） 能提升1-5% 能力
+Instruction 就是一句“任务说明”，告诉模型：“你接下来要处理的文本，是用于什么目的的”。 它不是数据本身，而是给模型的上下文提示，帮助模型生成更适合当前任务的向量。
+- 示例：
+```text
+Instruct: [你的任务描述]
+Query: [你的实际文本]
+针对rag 系统可以这样设置：
+Instruct: Given a user question, retrieve relevant passages from the knowledge base that can answer the question.
+Query: {user_question}
+还可以选择动态 instruction，根据用户输入，生成不同的 instruction （比如查询技术文档，客户问答的，医疗的，都可以自定义Instruct）
+并且Instruct 指令建议使用英文，因为qwen embedding 在训练时就使用了英文的指令（除非你微调该模型，增加中文的指令，已帮助模型理解中文指令和查询内容）
+
+# 对文档（documents/passages）编码时，不要加 instruction！只有 query（查询） 需要加，文档保持原样。
+```
+- 为什么 Qwen3-Embedding 要用 instruction？
+  模型在训练时就学过“带 instruction 的输入”；
+  加 instruction 能让 embedding 更贴合你的具体任务；
+  官方强烈推荐使用！

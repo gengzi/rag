@@ -1,0 +1,62 @@
+plugins {
+    id 'java'
+    // 可选：如果需要继承父工程的依赖管理
+    id 'io.spring.dependency-management'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+bootJar {
+    // 确保主类被正确包含
+    manifest {
+        attributes 'Main-Class': 'org.springframework.boot.loader.JarLauncher'
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+    dependencies {
+
+    }
+}
+
+dependencies {
+
+    implementation project(":rag-common")
+    implementation project(":rag-dao")
+    implementation 'org.springframework.boot:spring-boot-starter'
+    // webflux
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'io.projectreactor:reactor-core'
+    // security
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // jwt
+    implementation 'io.jsonwebtoken:jjwt:0.12.6'
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30' // 注解处理器，用于生成代码
+    implementation 'cn.hutool:hutool-all:5.8.16'
+    // 引入jdbc
+    implementation 'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    compileOnly 'org.checkerframework:checker-qual:3.49.1'
+    // rag
+    implementation "org.springframework.ai:spring-ai-rag"
+    // 数据库相关
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+}
+
+test {
+    useJUnitPlatform()
+}

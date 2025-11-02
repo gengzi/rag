@@ -1,7 +1,8 @@
 rootProject.name = 'rag'
-include ':chat'
-include ':core'
-include ':manager'
-include ':common'
-include 'dao'
+include 'rag-chat'
+include 'rag-core'
+include 'rag-manager'
+include 'rag-common'
+include 'rag-dao'
+include 'rag-agent'
 

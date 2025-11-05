@@ -16,6 +16,12 @@ public class BusinessException extends RuntimeException {
         this.code = resultCode.getCode();
     }
 
+    // 构造器：传入状态码和消息
+    public BusinessException(String message) {
+        super(message);
+        this.code = ResultCode.SYSTEM_ERROR.getCode();
+    }
+
     // Getter
     public Integer getCode() {
         return code;

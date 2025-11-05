@@ -7,9 +7,7 @@ plugins {
 group = 'com.gengzi'
 version = '0.0.1-SNAPSHOT'
 
-repositories {
-    mavenCentral()
-}
+
 bootJar {
     // 确保主类被正确包含
     manifest {

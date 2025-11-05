@@ -15,7 +15,7 @@ subprojects {
     sourceCompatibility = 1.17
 
     repositories {
-        mavenCentral()
+//        mavenCentral()
     }
 //    if (project.name != 'common') {
     // 子项目应用 Spring Boot 插件（通过 apply 方式，因为 plugins 块不能直接嵌套）
@@ -30,6 +30,9 @@ allprojects {
         // Spring仓库（加速Spring依赖）
         maven { url 'https://repo.spring.io/milestone' }
         maven { url 'https://repo.spring.io/snapshot' }
+
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/central' }
     }
 }
 

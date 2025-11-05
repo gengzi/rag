@@ -10,7 +10,7 @@ repositories {
     maven { url 'https://maven.aliyun.com/repository/spring' }
     maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
     // 最后 fallback 到官方仓库
-    mavenCentral()
+//    mavenCentral()
     gradlePluginPortal()
 }
 

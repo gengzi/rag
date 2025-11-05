@@ -113,3 +113,5 @@ Query: {user_question}
   模型在训练时就学过“带 instruction 的输入”；
   加 instruction 能让 embedding 更贴合你的具体任务；
   官方强烈推荐使用！
+
+### 针对系统提示词，可以增加一点 few-shot（少样本）的方式，来提升模型针对特定任务的能力

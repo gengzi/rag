@@ -1,8 +1,8 @@
-package com.gengzi.graph;
+package graph;
 
 
-import com.gengzi.graph.edge.Edge;
-import com.gengzi.graph.node.Node;
+import graph.edge.Edge;
+import graph.node.Node;
 
 import java.util.ArrayList;
 import java.util.List;

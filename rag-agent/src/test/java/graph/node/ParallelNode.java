@@ -1,4 +1,4 @@
-package com.gengzi.graph.node;
+package graph.node;
 
 
 import java.util.ArrayList;

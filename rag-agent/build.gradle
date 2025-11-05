@@ -5,9 +5,6 @@ plugins {
 group = 'com.gengzi'
 version = '0.0.1-SNAPSHOT'
 
-repositories {
-    mavenCentral()
-}
 
 ext {
     set('springAiAlibabaVersion', "1.0.0.4")
@@ -24,6 +21,9 @@ dependencyManagement {
 }
 
 dependencies {
+    implementation project(":rag-common")
+//    implementation project(":rag-dao")
+
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation "org.springframework.ai:spring-ai-starter-model-openai"
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -36,7 +36,15 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
+    // https://mvnrepository.com/artifact/org.apache.poi/poi
+    implementation("org.apache.poi:poi:5.4.1")
+    // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
 
+    // 工具包
+    implementation 'cn.hutool:hutool-all:5.8.16'
+//    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-dashscope'
+//    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-tool-calling-baidutranslate'
 }
 
 test {

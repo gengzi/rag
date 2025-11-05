@@ -1,4 +1,4 @@
-package com.gengzi.graph.state;
+package graph.state;
 
 import java.io.Serializable;
 

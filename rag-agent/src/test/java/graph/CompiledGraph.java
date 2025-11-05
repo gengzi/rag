@@ -1,9 +1,9 @@
-package com.gengzi.graph;
+package graph;
 
 
-import com.gengzi.graph.edge.Edge;
-import com.gengzi.graph.node.Node;
-import com.gengzi.graph.node.ParallelNode;
+import graph.edge.Edge;
+import graph.node.Node;
+import graph.node.ParallelNode;
 
 import java.util.*;
 import java.util.stream.Collectors;

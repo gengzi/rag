@@ -1,4 +1,4 @@
-package com.gengzi.graph.node;
+package graph.node;
 
 import com.alibaba.cloud.ai.graph.CompileConfig;
 import com.alibaba.cloud.ai.graph.action.AsyncNodeActionWithConfig;

@@ -1,4 +1,4 @@
-package com.gengzi.graph.edge;
+package graph.edge;
 
 import java.util.List;
 import java.util.Objects;

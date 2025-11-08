@@ -1,9 +1,12 @@
 package com.gengzi.rag.vector.es;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.KnnQuery;
 import co.elastic.clients.elasticsearch._types.RRFRetriever;
 import co.elastic.clients.elasticsearch._types.Retriever;
 import co.elastic.clients.elasticsearch._types.mapping.DenseVectorSimilarity;
+import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
@@ -212,6 +215,13 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
 //            throw new RuntimeException(e);
 //        }
 
+        // es 的混合检索是收费功能
+//        return esRRFSearch(searchRequest);
+
+        return freeHybridSearch(searchRequest);
+    }
+
+    private List<Document> esRRFSearch(SearchRequest searchRequest) {
         Assert.notNull(searchRequest, "The search request must not be null.");
         try {
             float threshold = (float) searchRequest.getSimilarityThreshold();
@@ -285,6 +295,160 @@ public class ExtendedElasticsearchVectorStore extends AbstractObservationVectorS
             throw new RuntimeException(e);
         }
     }
+
+
+    // 改造后的免费混合检索实现
+    public List<Document> freeHybridSearch(SearchRequest searchRequest) {
+        Assert.notNull(searchRequest, "The search request must not be null.");
+        try {
+            float threshold = (float) searchRequest.getSimilarityThreshold();
+            // 处理L2归一化距离的阈值转换（保持原逻辑）
+            if (this.options.getSimilarity().equals(SimilarityFunction.l2_norm)) {
+                threshold = 1 - threshold;
+            }
+            final float finalThreshold = threshold;
+
+            // 生成查询向量和原始查询文本
+            float[] vectors = this.embeddingModel.embed(searchRequest.getQuery());
+            List<Float> queryVector = EmbeddingUtils.toList(vectors);
+            String queryText = searchRequest.getQuery();
+            int topK = searchRequest.getTopK();
+            String indexName = this.options.getIndexName();
+            String filterQuery = getElasticsearchQueryString(searchRequest.getFilterExpression());
+
+            // 1. 执行向量检索（KNN），获取结果及排名
+            List<Hit<Document>> vectorHits = executeVectorSearch(
+                    indexName, queryVector, finalThreshold, topK, filterQuery
+            );
+
+            // 2. 执行关键词检索（multiMatch），获取结果及排名
+            List<Hit<Document>> textHits = executeTextSearch(
+                    indexName, queryText, topK, filterQuery
+            );
+
+            // 3. 手动实现RRF融合算法（核心：基于排名计算得分）
+            List<Document> mergedResults = mergeWithRRF(vectorHits, textHits, topK);
+
+            return mergedResults;
+
+        } catch (IOException e) {
+            throw new RuntimeException("混合检索执行失败", e);
+        }
+    }
+
+    // 执行向量检索（KNN）
+    private List<Hit<Document>> executeVectorSearch(
+            String indexName, List<Float> queryVector, float threshold, int topK, String filterQuery) throws IOException {
+        // 构建KNN查询
+        KnnQuery knnQuery = KnnQuery.of(knn -> knn
+                .queryVector(queryVector)
+                .similarity(threshold)
+                .k(topK)
+                .field(this.options.getEmbeddingFieldName())
+                .numCandidates((int) (1.5 * topK)) // 候选集数量
+        );
+
+        // 构建带过滤条件的查询
+        Query query = Query.of(q -> q
+                .knn(knnQuery)
+        );
+        if (filterQuery != null && !filterQuery.isEmpty()) {
+            query = Query.of(q -> q
+                    .bool(b -> b
+                            .must(m -> m.knn(knnQuery)) // 必须满足KNN条件
+                            .filter(f -> f.queryString(qs -> qs.query(filterQuery))) // 过滤条件
+                    )
+            );
+        }
+
+        // 执行查询
+        Query finalQuery = query;
+        SearchResponse<Document> vectorResponse = this.elasticsearchClient.search(
+                sr -> sr.index(indexName).query(finalQuery).size(topK),
+                Document.class
+        );
+        return vectorResponse.hits().hits();
+    }
+
+    // 执行关键词检索（multiMatch）
+    private List<Hit<Document>> executeTextSearch(
+            String indexName, String queryText, int topK, String filterQuery) throws IOException {
+        // 构建multiMatch查询
+        MultiMatchQuery multiMatchQuery = MultiMatchQuery.of(mm -> mm
+                .query(queryText)
+                .fields("title_tks", "content_ltks^2") // 保持原字段权重
+                .type(TextQueryType.BestFields)
+        );
+
+        // 构建带过滤条件的查询
+        Query query = Query.of(q -> q
+                .multiMatch(multiMatchQuery)
+        );
+        if (filterQuery != null && !filterQuery.isEmpty()) {
+            query = Query.of(q -> q
+                    .bool(b -> b
+                            .must(m -> m.multiMatch(multiMatchQuery)) // 必须满足关键词条件
+                            .filter(f -> f.queryString(qs -> qs.query(filterQuery))) // 过滤条件
+                    )
+            );
+        }
+
+        // 执行查询
+        Query finalQuery = query;
+        SearchResponse<Document> textResponse = this.elasticsearchClient.search(
+                sr -> sr.index(indexName).query(finalQuery).size(topK),
+                Document.class
+        );
+        return textResponse.hits().hits();
+    }
+
+    // 手动实现RRF融合（基于排名计算得分）
+    private List<Document> mergeWithRRF(
+            List<Hit<Document>> vectorHits, List<Hit<Document>> textHits, int topK) {
+        // 1. 记录每个文档在两个检索结果中的排名（从1开始）
+        Map<String, Integer> vectorRankMap = new HashMap<>();
+        for (int i = 0; i < vectorHits.size(); i++) {
+            vectorRankMap.put(vectorHits.get(i).id(), i + 1); // 排名=索引+1
+        }
+
+        Map<String, Integer> textRankMap = new HashMap<>();
+        for (int i = 0; i < textHits.size(); i++) {
+            textRankMap.put(textHits.get(i).id(), i + 1);
+        }
+
+        // 2. 收集所有文档ID（去重）
+        Set<String> allDocIds = new HashSet<>();
+        vectorHits.forEach(hit -> allDocIds.add(hit.id()));
+        textHits.forEach(hit -> allDocIds.add(hit.id()));
+
+        // 3. 计算RRF得分：sum(1/(k + rank))，k=60（标准RRF参数）
+        int rrfK = 60;
+        Map<String, Float> rrfScoreMap = new HashMap<>();
+        for (String docId : allDocIds) {
+            // 向量检索中的得分贡献（若未出现，排名视为无穷大，贡献0）
+            int vectorRank = vectorRankMap.getOrDefault(docId, Integer.MAX_VALUE);
+            float vectorScore = (vectorRank != Integer.MAX_VALUE) ? 1.0f / (rrfK + vectorRank) : 0f;
+
+            // 关键词检索中的得分贡献
+            int textRank = textRankMap.getOrDefault(docId, Integer.MAX_VALUE);
+            float textScore = (textRank != Integer.MAX_VALUE) ? 1.0f / (rrfK + textRank) : 0f;
+
+            // 总得分
+            rrfScoreMap.put(docId, vectorScore + textScore);
+        }
+
+        // 4. 按RRF得分降序排序，取前topK，并转换为Document
+        Map<String, Hit<Document>> allHitsMap = new HashMap<>();
+        vectorHits.forEach(hit -> allHitsMap.put(hit.id(), hit));
+        textHits.forEach(hit -> allHitsMap.put(hit.id(), hit)); // 若ID重复，取最后一个（不影响，内容一致）
+
+        return rrfScoreMap.entrySet().stream()
+                .sorted((e1, e2) -> Float.compare(e2.getValue(), e1.getValue())) // 降序
+                .limit(topK)
+                .map(entry -> toDocument(allHitsMap.get(entry.getKey()))) // 转换为Document
+                .collect(Collectors.toList());
+    }
+
 
     private String getElasticsearchQueryString(Filter.Expression filterExpression) {
         return Objects.isNull(filterExpression) ? "*"

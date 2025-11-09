@@ -79,7 +79,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
       
       // 使用mammoth.js转换为HTML，包含样式信息
       const result = await mammoth.convertToHtml({ 
-        arrayBuffer,
+        arrayBuffer
+      }, { 
         // 配置选项以保留更多格式信息
         styleMap: [
           "p[style-name='Title'] => h1:fresh",
@@ -199,7 +200,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
       };
       
     } catch (error) {
-      container.innerHTML = `<div class="text-red-500 p-4">Word文档预览失败: ${error.message}</div>`;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      container.innerHTML = `<div class="text-red-500 p-4">Word文档预览失败: ${errorMessage}</div>`;
     }
   };
 
@@ -252,12 +254,12 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
     
     // 组件挂载时加载状态
     useEffect(() => {
-      setPptxLoading(true);
-      setPptxError(null);
+      setLoading(true);
+      setError(null);
       
       // 模拟加载完成
       const timer = setTimeout(() => {
-        setPptxLoading(false);
+        setLoading(false);
       }, 1000);
       
       return () => clearTimeout(timer);
@@ -265,7 +267,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
     
     return (
       <div className="flex flex-col items-center w-full h-full">
-        {pptxLoading ? (
+        {loading ? (
           <div className="w-full h-[calc(100vh-180px)] flex items-center justify-center">
             <div className="flex flex-col items-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -281,10 +283,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
                 title="PowerPoint Preview"
                 className="w-full flex-1"
                 frameBorder="0"
-                onLoad={() => setPptxLoading(false)}
+                onLoad={() => setLoading(false)}
                 onError={() => {
                   console.error('PowerPoint加载失败');
-                  setPptxError('PowerPoint文档预览失败，请尝试下载文件');
+                  setError('PowerPoint文档预览失败，请尝试下载文件');
                 }}
               />
             </div>
@@ -323,9 +325,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
               </Button>
             </div>
             
-            {pptxError && (
+            {error && (
               <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                {pptxError}
+                {error}
               </div>
             )}
           </>
@@ -593,8 +595,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
     // 组件挂载时加载Excel文档
     useEffect(() => {
       const loadExcelDocument = async () => {
-        setExcelLoading(true);
-        setExcelError(null);
+        setLoading(true);
+        setError(null);
         
         try {
           // 清空预览容器
@@ -698,9 +700,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
           
         } catch (error) {
           console.error('Error rendering Excel document:', error);
-          setExcelError('Excel文档预览失败，请尝试下载文件');
+          setError('Excel文档预览失败，请尝试下载文件');
         } finally {
-          setExcelLoading(false);
+          setLoading(false);
         }
       };
       
@@ -716,20 +718,20 @@ const FilePreview: React.FC<FilePreviewProps> = ({ documentId, onBack }) => {
     
     return (
       <div className="flex flex-col items-center w-full h-full">
-        {excelLoading ? (
+        {loading ? (
           <div className="w-full h-[calc(100vh-180px)] flex items-center justify-center">
             <div className="flex flex-col items-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
               <p className="text-sm text-muted-foreground">正在加载Excel文档...</p>
             </div>
           </div>
-        ) : excelError ? (
+        ) : error ? (
           <Card className="w-full max-w-md mx-auto">
             <CardContent className="flex flex-col items-center justify-center text-center p-8">
               <div className="mb-6 text-destructive">
                 {getFileIcon()}
               </div>
-              <h3 className="text-lg font-medium text-destructive mb-2">{excelError}</h3>
+              <h3 className="text-lg font-medium text-destructive mb-2">{error}</h3>
               <p className="text-muted-foreground mb-6">
                 请尝试下载文件后查看，或检查网络连接
               </p>

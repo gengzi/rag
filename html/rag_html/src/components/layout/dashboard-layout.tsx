@@ -67,12 +67,16 @@ export default function DashboardLayout({
       return [
         { name: "知识库", href: "/dashboard/knowledge", icon: Book },
         ...baseNav,
+        { name: "测试页面", href: "/dashboard/test-page", icon: Book },
         { name: "RAG评估", href: "/dashboard/rag-evaluation", icon: BarChart },
         { name: "用户管理", href: "/dashboard/users", icon: User },
       ];
     }
     
-    return baseNav;
+    return [
+      ...baseNav,
+      { name: "测试页面", href: "/dashboard/test-page", icon: Book },
+    ];
   };
   
   const navigation = getNavigationItems();

@@ -38,7 +38,7 @@ public class DefaultMapToResult implements Function<ChatResponse, Map<String, Ob
         }
 
         public DefaultMapToResult build() {
-            if (StrUtil.isNotBlank(key)) {
+            if (StrUtil.isBlank(key)) {
                 throw new IllegalArgumentException("key is not bank");
             }
             return new DefaultMapToResult(this);

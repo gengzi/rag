@@ -27,6 +27,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation "org.springframework.ai:spring-ai-starter-model-openai"
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Boot AOP Starter
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
 
     compileOnly 'org.projectlombok:lombok:1.18.30'

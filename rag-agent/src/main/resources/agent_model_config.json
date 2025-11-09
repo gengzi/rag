@@ -1,3 +1,6 @@
 [
-  {"name": "outlineGeneration", "modelName": "deepseek-ai/DeepSeek-V3"}
+  {
+    "name": "outlineGeneration",
+    "modelName": "deepseek-ai/DeepSeek-V3"
+  }
 ]

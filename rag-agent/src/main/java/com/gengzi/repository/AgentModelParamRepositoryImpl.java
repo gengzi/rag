@@ -1,6 +1,8 @@
 package com.gengzi.repository;
 
-import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gengzi.util.ResourceUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -14,8 +16,14 @@ public class AgentModelParamRepositoryImpl implements AgentModelParamRepository 
 
     private final List<AgentModel> agentModels;
 
-    public AgentModelParamRepositoryImpl(@Value("classpath:agent_model_config.json") Resource agentsConfig) {
-        agentModels = JSONUtil.toList(ResourceUtil.loadResourceAsString(agentsConfig), AgentModel.class);
+    public AgentModelParamRepositoryImpl(@Value("classpath:agent_model_config.json") Resource agentsConfig, ObjectMapper objectMapper) {
+        try {
+            agentModels = objectMapper.readValue(ResourceUtil.loadResourceAsString(agentsConfig),
+                    new TypeReference<List<AgentModel>>() {
+                    });
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

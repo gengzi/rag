@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
@@ -35,6 +36,7 @@ public class OutlineGenerationNode implements NodeAction {
 
     @Override
     public Map<String, Object> apply(OverAllState state) {
+        logger.info("开始执行大纲生成节点");
         PromptTemplate DEFAULTPROMPTTEMPLATE = new PromptTemplate(aiPPTConfig.getOutlinePrompt());
         // 获取入参信息，通过入参调用llm 生成ppt大纲（流示输出 + 人类反馈）
         String query = state.value("query", "");
@@ -44,14 +46,22 @@ public class OutlineGenerationNode implements NodeAction {
                 .user(query)
                 .stream().chatResponse();
 
+
+
         // 异步内容到前端显示
         Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder()
                 .startingNode("OutlineGenerationNodeStream")
                 .startingState(state)
                 .mapResult(DefaultMapToResult.builder("OutlineGenerationNodeStream").build())
-                .build(chatResponseFlux);
+                .build(chatResponseFlux)
+                .doOnComplete(()->{
+                    logger.info("大纲生成完毕");
+                });
 
-        return Map.of("OutlineGenerationResult", generator);
+        Flux<GraphResponse<StreamingOutput>> outlineGenerationNodeStream =
+                generator.concatWith(Mono.just(GraphResponse.of(new StreamingOutput("\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n", "OutlineGenerationNodeStream", state))));
+
+        return Map.of("OutlineGenerationResult", outlineGenerationNodeStream);
 
     }
 }

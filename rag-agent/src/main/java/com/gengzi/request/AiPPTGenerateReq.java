@@ -12,6 +12,11 @@ public class AiPPTGenerateReq {
      */
     private String query;
 
+    /**
+     * 一次graph执行关联同一个sessionId
+     */
+    private String sessionId;
+
 
 
 }

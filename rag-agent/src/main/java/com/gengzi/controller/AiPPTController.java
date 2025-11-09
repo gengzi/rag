@@ -1,14 +1,18 @@
 package com.gengzi.controller;
 
-import com.alibaba.cloud.ai.graph.CompiledGraph;
-import com.alibaba.cloud.ai.graph.NodeOutput;
-import com.alibaba.cloud.ai.graph.RunnableConfig;
-import com.alibaba.cloud.ai.graph.StateGraph;
+import com.alibaba.cloud.ai.graph.*;
+import com.alibaba.cloud.ai.graph.checkpoint.config.SaverConfig;
+import com.alibaba.cloud.ai.graph.checkpoint.constant.SaverEnum;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
+import com.alibaba.cloud.ai.graph.state.StateSnapshot;
 import com.gengzi.graph.GraphProcess;
 import com.gengzi.request.AiPPTGenerateReq;
+import com.gengzi.request.RagChatReq;
+import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.service.AiPPTService;
+import com.gengzi.service.ChatService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +38,16 @@ public class AiPPTController {
     @Autowired
     private AiPPTService aiPPTService;
 
+    @Autowired
+    private ChatService chatService;
+
     public AiPPTController(@Qualifier("streamGraph") StateGraph stateGraph) throws GraphStateException {
-        this.compile = stateGraph.compile();
+//        this.compile = stateGraph.compile();
+        SaverConfig saverConfig = SaverConfig.builder().register(SaverEnum.MEMORY.getValue(), new MemorySaver()).build();
+//        this.compile = stateGraph
+//                .compile(CompileConfig.builder().saverConfig(saverConfig).interruptBefore("humanFeedbackNode").build());
+        this.compile = stateGraph
+                .compile(CompileConfig.builder().saverConfig(saverConfig).build());
     }
 
 
@@ -51,13 +63,21 @@ public class AiPPTController {
     }
 
 
+    /**
+     * 通过graph图形式，根据用户问题生成ppt
+     *
+     * @param req
+     * @return
+     */
     @PostMapping(value = "/generateStream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> generateStream(@RequestBody AiPPTGenerateReq req) {
-        String threadId = Thread.currentThread().getName();
-        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(threadId).build();
+        // 运行配置
+        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
+        // 入参
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuery());
         GraphProcess graphProcess = new GraphProcess(compile);
+        // 输出
         Sinks.Many<ServerSentEvent<String>> sink = Sinks.many().unicast().onBackpressureBuffer();
         Flux<NodeOutput> nodeOutputFlux = compile.fluxStream(objectMap, runnableConfig);
         graphProcess.processStream(nodeOutputFlux, sink);
@@ -67,5 +87,44 @@ public class AiPPTController {
                 .doOnError(e -> logger.error("Error occurred during streaming", e));
     }
 
+
+    @PostMapping(value = "/resume", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> resume(@RequestBody AiPPTGenerateReq req) throws GraphRunnerException {
+        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
+        StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
+        OverAllState state = stateSnapshot.state();
+        state.withResume();
+
+        Map<String, Object> objectMap = new HashMap<>();
+        objectMap.put("feedback", req.getQuery());
+
+        state.withHumanFeedback(new OverAllState.HumanFeedback(objectMap, ""));
+
+        // Create a unicast sink to emit ServerSentEvents
+        Sinks.Many<ServerSentEvent<String>> sink = Sinks.many().unicast().onBackpressureBuffer();
+        GraphProcess graphProcess = new GraphProcess(this.compile);
+        Flux<NodeOutput> resultFuture = compile.fluxStreamFromInitialNode(state, runnableConfig);
+        graphProcess.processStream(resultFuture, sink);
+
+        return sink.asFlux()
+                .doOnCancel(() -> logger.info("Client disconnected from stream"))
+                .doOnError(e -> logger.error("Error occurred during streaming", e));
+    }
+
+
+
+
+
+
+    /**
+     * 知识库检索
+     *
+     * @param req
+     * @return
+     */
+    @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(@RequestBody RagChatReq req) {
+        return chatService.chatRag(req);
+    }
 
 }

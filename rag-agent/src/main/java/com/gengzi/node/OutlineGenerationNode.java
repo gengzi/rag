@@ -50,18 +50,19 @@ public class OutlineGenerationNode implements NodeAction {
 
         // 异步内容到前端显示
         Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder()
-                .startingNode("OutlineGenerationNodeStream")
+                .startingNode("outlineGenNode")
                 .startingState(state)
-                .mapResult(DefaultMapToResult.builder("OutlineGenerationNodeStream").build())
+                .mapResult(DefaultMapToResult.builder("outlineGenNode_content").build())
                 .build(chatResponseFlux)
                 .doOnComplete(()->{
                     logger.info("大纲生成完毕");
                 });
 
+        // TODO 可能影响数据读取
         Flux<GraphResponse<StreamingOutput>> outlineGenerationNodeStream =
-                generator.concatWith(Mono.just(GraphResponse.of(new StreamingOutput("\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n", "OutlineGenerationNodeStream", state))));
+                generator.concatWith(Mono.just(GraphResponse.of(new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state))));
 
-        return Map.of("OutlineGenerationResult", outlineGenerationNodeStream);
+        return Map.of("outlineGenNode_content", outlineGenerationNodeStream);
 
     }
 }

@@ -25,5 +25,8 @@ public class ChatAnswerResponse {
     private String messageType;
 
 
+    private String sessionId;
+
+
 
 }

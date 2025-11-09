@@ -115,13 +115,6 @@ public class AiPPTController {
 
 
 
-
-    /**
-     * 知识库检索
-     *
-     * @param req
-     * @return
-     */
     @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(@RequestBody RagChatReq req) {
         return chatService.chatRag(req);

@@ -101,6 +101,7 @@ public class ChatServiceImpl implements ChatService {
 
         try {
             StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
+            // TODO 需要判断下一个节点是 人类反馈节点才进入
             if (stateSnapshot != null && !stateSnapshot.next().equals(StateGraph.END)) {
                 try {
                     return resume(req);

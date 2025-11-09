@@ -29,8 +29,6 @@ public class HumanFeedbackNode implements NodeAction {
         resultMap.put("humannextnode", nextStep);
         resultMap.put("human_feedback", feedback);
         logger.info("humanfeedback node -> {} node", nextStep);
-
-
         return resultMap;
     }
 }

@@ -13,9 +13,17 @@ public class AgentGraphRes extends ContentRes{
 
     private String content;
 
-    private String streamStatus;
+    /**
+     * 进行状态
+     * 0: 执行中 1: 已完成 2: 失败
+     */
+    private Integer streamStatus;
 
-    // 下一个节点是否为人类反馈节点
-    private Boolean isHumanFeedback;
+    /**
+     * 显示的标题
+     */
+    private String displayTitle;
+
+
 
 }

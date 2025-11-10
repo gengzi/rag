@@ -96,9 +96,10 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
   /**
    * 根据节点类型渲染单个流程节点
    * @param node 流程节点对象
+   * @param index 节点顺序索引（从1开始）
    * @returns 渲染后的节点JSX元素
    */
-  const renderSingleProcessNode = (node: ProcessNode) => {
+  const renderSingleProcessNode = (node: ProcessNode, index?: number) => {
     const statusColors = {
       active: 'bg-blue-500 text-white',
       completed: 'bg-green-500 text-white',
@@ -111,13 +112,9 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
       return (
           <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">
             <div className="flex gap-4 items-start">
-              {/* 节点图标/状态 */}
+              {/* 节点图标/状态 - 显示节点顺序数字 */}
               <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${statusColors[node.status]}`}>
-                {node.icon ? (
-                    <Globe className="h-5 w-5" />
-                ) : (
-                    <span className="font-bold">{node.id.slice(-1)}</span>
-                )}
+                <span className="font-bold">{index}</span>
               </div>
 
               {/* 节点内容 */}
@@ -264,7 +261,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
         <div className="space-y-3">
           {sortedNodes.map((node, index) => (
               <React.Fragment key={node.id}>
-                {renderSingleProcessNode(node)}
+                {renderSingleProcessNode(node, index + 1)} {/* 传递索引+1作为节点顺序（从1开始计数） */}
                 {index < sortedNodes.length - 1 && (
                     <div className="ml-5 -mt-1 -mb-1 flex justify-center">
                       <div className="h-4 w-0.5 bg-gray-200"></div>

@@ -373,6 +373,36 @@ export default function TestPage() {
         }
       }
 
+      // 流式响应结束后，将所有节点状态设置为已完成
+      // 确保节点数据响应完了都标记为成功
+      processNodes = processNodes.map(node => ({
+        ...node,
+        status: 'completed'
+      }));
+
+      // 更新最终状态到UI
+      const finalAssistantMessage: Message = {
+        id: newAssistantMessageId,
+        content: '', // 留空，避免重复显示
+        role: 'assistant' as const,
+        createdAt: new Date(),
+        ragReference: undefined,
+        processFlow: { nodes: processNodes, edges: processEdges }
+      };
+
+      setMessages(prev => {
+        const existingIndex = prev.findIndex(msg => msg.id === newAssistantMessageId);
+        if (existingIndex >= 0) {
+          // 更新现有消息
+          const updatedMessages = [...prev];
+          updatedMessages[existingIndex] = finalAssistantMessage;
+          return updatedMessages;
+        } else {
+          // 添加新消息
+          return [...prev, finalAssistantMessage];
+        }
+      });
+
     } catch (error) {
       console.error("发送消息失败:", error);
 

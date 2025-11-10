@@ -30,6 +30,7 @@ interface ProcessNode {
   description?: string;
   content?: string;
   order?: number;
+  displayTitle?: string; // 新增：用于节点名称展示的标题
   reference?: Array<{
     chunkId: string;
     documentId: string;
@@ -120,7 +121,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
               {/* 节点内容 */}
               <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-sm">{node.name}</h4>
+                  <h4 className="font-medium text-sm">{node.displayTitle || node.name}</h4>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
                   {node.status === 'active' ? '执行中' :
                       node.status === 'completed' ? '已完成' : '待执行'}

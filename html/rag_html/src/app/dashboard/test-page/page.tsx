@@ -27,9 +27,11 @@ interface ProcessNode {
   id: string;
   name: string;
   status: 'active' | 'completed' | 'pending';
+  icon?: string;
   description?: string;
-  content?: string; // 添加content字段用于存储节点内容
-  order?: number;   // 添加order字段用于排序
+  content?: string;
+  order?: number;
+  displayTitle?: string; // 新增：用于节点名称展示的标题
   reference?: Array<{
     chunkId: string;
     documentId: string;
@@ -79,6 +81,151 @@ export default function TestPage() {
   const [isLoading, setIsLoading] = useState(false); // 加载状态
   const [showPptTag, setShowPptTag] = useState(false); // 是否显示PPT标签
   const [assistantMessageId, setAssistantMessageId] = useState(''); // 当前助手消息ID
+  const [loadingChat, setLoadingChat] = useState(true); // 加载聊天记录状态
+
+  // 获取聊天记录
+  const fetchChatHistory = async () => {
+    try {
+      setLoadingChat(true);
+      const response = await fetch('http://127.0.0.1:8889/aippt/chat/rag/msg/list?conversationId=57', {
+        method: 'GET',
+        headers: {
+          'accept': '*/*'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`获取聊天记录失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('获取到的聊天记录:', data);
+      
+      // 根据实际API返回的数据结构解析消息
+      if (data.code === 200 && data.data && Array.isArray(data.data.message)) {
+        const formattedMessages: Message[] = [];
+        
+        data.data.message.forEach((msg: any) => {
+          if (msg.content && Array.isArray(msg.content)) {
+            // 为每条消息创建一个完整的processFlow，参考agent-answer.tsx的实现
+            const processNodes: ProcessNode[] = [];
+            const processEdges: Array<{ from: string; to: string }> = [];
+            
+            // 处理每个消息的content数组，构建完整的流程节点列表
+            msg.content.forEach((contentItem: any, index: number) => {
+              if (contentItem.messageType === 'text') {
+                // 文本类型节点 (LLM输出)
+                const answer = contentItem.content?.answer || '';
+                const messageContent = typeof answer === 'string' ? answer : JSON.stringify(answer);
+                const references = contentItem.content?.reference?.reference || [];
+                
+                // 创建LLM类型节点
+                const llmNode: ProcessNode = {
+                  type: 'llm',
+                  id: `llm-${index}`,
+                  name: '回答生成',
+                  status: 'completed',
+                  content: messageContent,
+                  reference: references,
+                  order: index
+                };
+                
+                processNodes.push(llmNode);
+              } else if (contentItem.messageType === 'agent') {
+                // Agent类型节点 - 注意：根据聊天记录数据，nodeName和displayTitle在contentItem.content对象下
+                const agentData = contentItem.content || {};
+                const nodeName = agentData.nodeName || `agent-${index}`;
+                const displayTitle = agentData.displayTitle || nodeName;
+                // 只展示content属性下的内容
+                const nodeContent = agentData.content || '';
+                const references = agentData.reference?.reference || [];
+                
+                // 创建Agent类型节点
+                const agentNode: ProcessNode = {
+                  type: 'agent',
+                  id: nodeName,
+                  name: nodeName,
+                  displayTitle: displayTitle,
+                  status: 'completed',
+                  // 确保只展示content属性下的内容，同时设置到description属性以匹配AgentAnswer组件的渲染逻辑
+                  content: typeof nodeContent === 'string' ? nodeContent : JSON.stringify(nodeContent),
+                  description: typeof nodeContent === 'string' ? nodeContent : JSON.stringify(nodeContent),
+                  reference: references,
+                  order: index
+                };
+                
+                processNodes.push(agentNode);
+              }
+            });
+            
+            // 构建边的关系
+            for (let i = 1; i < processNodes.length; i++) {
+              processEdges.push({
+                from: processNodes[i-1].id,
+                to: processNodes[i].id
+              });
+            }
+            
+            // 创建完整的processFlow
+            const processFlow: ProcessFlow = {
+              nodes: processNodes,
+              edges: processEdges
+            };
+            
+            // 获取第一条文本内容作为消息主内容（如果有）
+            const firstTextContent = msg.content.find((item: any) => item.messageType === 'text');
+            const messageContent = firstTextContent?.content?.answer || '';
+            const ragReference = firstTextContent?.content?.reference;
+            
+            // 创建消息对象，参考agent-answer.tsx的渲染逻辑
+            formattedMessages.push({
+              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              content: typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent),
+              role: msg.role === 'USER' ? 'user' : 'assistant',
+              createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              citations: firstTextContent?.content?.reference?.reference || [],
+              ragReference: ragReference,
+              processFlow: processFlow,
+              isAgent: msg.content.some((item: any) => item.messageType === 'agent')
+            });
+          } else if (msg.content && typeof msg.content === 'string') {
+            // 处理简单文本消息
+            formattedMessages.push({
+              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              content: msg.content,
+              role: msg.role === 'USER' ? 'user' : 'assistant',
+              createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              citations: [],
+              ragReference: undefined,
+              processFlow: undefined,
+              isAgent: false
+            });
+          }
+        });
+        
+        setMessages(formattedMessages);
+      }
+      
+      // 聊天记录加载完成后滚动到底部
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (error) {
+      console.error('获取聊天记录错误:', error);
+      toast({
+        title: "错误",
+        description: "获取聊天记录失败",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  // 组件加载时获取聊天记录
+  useEffect(() => {
+    fetchChatHistory();
+  }, []);
 
   /**
    * 自动滚动到底部效果
@@ -101,9 +248,9 @@ export default function TestPage() {
    */
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!input.trim() || isLoading) return;
-
+    
+    if (!input.trim() || isLoading || loadingChat) return;
+    
     try {
       setIsLoading(true);
 
@@ -129,7 +276,7 @@ export default function TestPage() {
       // 准备请求参数
       const requestData = {
         question: input.trim(),
-        conversationId: "55", // 固定为55
+        conversationId: "57", // 固定为55
         sessionId: "123456", // 每次随机生成
         agentId: showPptTag ? "1" : "" // 有PPT标签时设置为1，否则为空
       };
@@ -319,6 +466,7 @@ export default function TestPage() {
                   type: 'agent',
                   id: nodeName,
                   name: nodeName,
+                  displayTitle: agentContent.displayTitle || nodeName, // 使用displayTitle作为节点名称展示
                   status: 'active',
                   description: nodeDescription,
                   reference: agentContent.reference?.reference || [], // 添加引用信息
@@ -350,7 +498,10 @@ export default function TestPage() {
                 role: 'assistant' as const,
                 createdAt: new Date(),
                 ragReference: data.content.reference,
-                processFlow: { nodes: processNodes, edges: processEdges }
+                processFlow: { 
+                  nodes: processNodes,
+                  edges: processEdges 
+                }
               };
 
               // 检查消息是否已存在
@@ -454,7 +605,14 @@ export default function TestPage() {
 
         {/* 聊天内容区域 */}
         <div className="flex-1 p-4 space-y-6 bg-background overflow-y-auto">
-          {messages.length === 0 ? (
+          {/* 加载聊天记录状态 */}
+          {loadingChat && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500 mr-2" />
+              <span className="text-gray-600">加载聊天记录中...</span>
+            </div>
+          )}
+          {messages.length === 0 && !loadingChat ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
               <div className="h-24 w-24 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
                 <MessageSquare className="h-10 w-10 text-secondary" />

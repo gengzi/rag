@@ -78,6 +78,7 @@ export default function TestPage() {
   const [input, setInput] = useState(''); // 输入框内容
   const [isLoading, setIsLoading] = useState(false); // 加载状态
   const [showPptTag, setShowPptTag] = useState(false); // 是否显示PPT标签
+  const [assistantMessageId, setAssistantMessageId] = useState(''); // 当前助手消息ID
 
   /**
    * 自动滚动到底部效果
@@ -117,9 +118,8 @@ export default function TestPage() {
       // 先更新本地消息列表
       setMessages(prev => [...prev, userMessage]);
 
-      // 清空输入框并重置PPT标签状态
+      // 清空输入框，但保留PPT标签状态
       setInput('');
-      setShowPptTag(false);
 
       // 生成随机sessionId
       const generateSessionId = () => {
@@ -158,7 +158,8 @@ export default function TestPage() {
       }
 
       // 创建单一的AI助手消息，用于按顺序合并展示文本和agent信息
-      const assistantMessageId = `msg-${Date.now()}-assistant-${Math.random().toString(36).substr(2, 9)}`;
+      const newAssistantMessageId = `msg-${Date.now()}-assistant-${Math.random().toString(36).substr(2, 9)}`;
+      setAssistantMessageId(newAssistantMessageId);
       let textContentBuffer = ''; // 用于累积文本内容
       let processNodes: ProcessNode[] = []; // 用于存储所有流程节点（包括agent和llm类型）
       let processEdges: Array<{ from: string; to: string }> = [];
@@ -253,9 +254,10 @@ export default function TestPage() {
               lastMessageType = 'text';
 
               // 更新助手消息
+              // 不直接设置content字段，避免与processFlow中的llm节点内容重复
               const assistantMessage: Message = {
-                id: assistantMessageId,
-                content: textContentBuffer,
+                id: newAssistantMessageId,
+                content: '', // 留空，避免重复显示
                 role: 'assistant' as const,
                 createdAt: new Date(),
                 citations: references, // 传递引用信息到 citations
@@ -265,7 +267,7 @@ export default function TestPage() {
 
               // 检查消息是否已存在
               setMessages(prev => {
-                const existingIndex = prev.findIndex(msg => msg.id === assistantMessageId);
+                const existingIndex = prev.findIndex(msg => msg.id === newAssistantMessageId);
                 if (existingIndex >= 0) {
                   // 更新现有消息
                   const updatedMessages = [...prev];
@@ -341,9 +343,10 @@ export default function TestPage() {
               lastNodeName = nodeName;
 
               // 更新助手消息
+              // 不直接设置content字段，避免与processFlow中的llm节点内容重复
               const assistantMessage: Message = {
-                id: assistantMessageId,
-                content: textContentBuffer,
+                id: newAssistantMessageId,
+                content: '', // 留空，避免重复显示
                 role: 'assistant' as const,
                 createdAt: new Date(),
                 ragReference: data.content.reference,
@@ -352,7 +355,7 @@ export default function TestPage() {
 
               // 检查消息是否已存在
               setMessages(prev => {
-                const existingIndex = prev.findIndex(msg => msg.id === assistantMessageId);
+                const existingIndex = prev.findIndex(msg => msg.id === newAssistantMessageId);
                 if (existingIndex >= 0) {
                   // 更新现有消息
                   const updatedMessages = [...prev];
@@ -391,6 +394,7 @@ export default function TestPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false); // 无论成功失败都重置加载状态
+      setAssistantMessageId(''); // 重置助手消息ID，避免影响下一次对话
     }
   };
 
@@ -471,7 +475,8 @@ export default function TestPage() {
                   )}
                 </div>
               ))}
-              {isLoading && (
+              {/* 只有在isLoading为true且没有assistant消息时才显示加载状态 */}
+              {isLoading && !messages.some(msg => msg.role === 'assistant' && msg.id.startsWith(assistantMessageId || '')) && (
                 <div className="flex justify-start gap-3 py-2">
                   <div className="h-10 w-10 flex-shrink-0 rounded-full bg-secondary/10 p-2 text-secondary flex items-center justify-center shadow-sm">
                     <Bot className="h-5 w-5" />
@@ -512,7 +517,7 @@ export default function TestPage() {
                   value={input}
                   onChange={handleInputChange}
                   placeholder={showPptTag ? "" : "输入您的问题..."}
-                  className={`flex-1 min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ${showPptTag ? 'pl-20' : 'pl-4'}`}
+                  className={`w-full h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ${showPptTag ? 'pl-20' : 'pl-4'}`}
                   disabled={isLoading}
                   autoComplete="off"
                 />
@@ -522,16 +527,16 @@ export default function TestPage() {
                     onClick={() => setShowPptTag(false)}
                     className="absolute left-1 top-1/2 transform -translate-y-1/2 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center hover:bg-primary/90 transition-colors"
                   >
-                    ppt
+                    aippt
                     <span className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors">×</span>
                   </button>
                 )}
               </div>
-            <Button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="h-12 px-6 rounded-md transition-all duration-200 group bg-primary hover:bg-primary/90 hover:shadow-md disabled:opacity-50 disabled:hover:shadow-none"
-            >
+              <Button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="h-12 px-6 rounded-md transition-all duration-200 group bg-primary hover:bg-primary/90 hover:shadow-md disabled:opacity-50 disabled:hover:shadow-none"
+              >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -551,7 +556,7 @@ export default function TestPage() {
               disabled={showPptTag || isLoading}
               className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
             >
-              添加PPT前缀
+              AiPPT-工具
             </Button>
           </div>
         </div>

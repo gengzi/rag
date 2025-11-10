@@ -217,23 +217,26 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
 
   /**
    * 渲染处理流程节点
-   * 合并processFlow节点和content节点，避免重复添加llm类型节点
+   * 确保不会重复添加或显示llm类型节点
    * @returns 渲染后的节点列表JSX元素
    */
   const renderProcessNodes = () => {
     // 创建所有节点的合并数组
     const allNodes: ProcessNode[] = [];
-
-    // 添加processFlow中的节点
+    
+    // 检查processFlow中是否包含llm类型节点
+    let hasLlmNodeFromProcessFlow = false;
+    
+    // 添加processFlow中的节点，并检查是否有llm节点
     if (processFlow && processFlow.nodes.length) {
+      hasLlmNodeFromProcessFlow = processFlow.nodes.some(node => node.type === 'llm');
       allNodes.push(...processFlow.nodes);
     }
-
-    // 检查是否已经包含llm类型节点
-    const hasLlmNode = allNodes.some(node => node.type === 'llm');
-
-    // 仅当没有llm节点且有content时，添加content作为llm节点
-    if (content && !hasLlmNode) {
+    
+    // 仅当processFlow中没有llm节点且有content时，才添加content作为llm节点
+    // 确保即使content是空字符串也能正确处理（兼容旧版本和新版本）
+    const contentHasValue = content !== undefined && content !== null && content !== '';
+    if (contentHasValue && !hasLlmNodeFromProcessFlow) {
       allNodes.push({
         type: 'llm',
         id: 'llm-output',
@@ -244,18 +247,18 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
         reference: citations || []
       });
     }
-
+    
     if (allNodes.length === 0) {
       return null;
     }
-
+    
     // 根据order字段排序节点，如果没有order则按照数组顺序
     const sortedNodes = [...allNodes].sort((a, b) => {
       const orderA = a.order ?? 0;
       const orderB = b.order ?? 0;
       return orderA - orderB;
     });
-
+    
     // 渲染所有排序后的节点
     return (
         <div className="space-y-3">

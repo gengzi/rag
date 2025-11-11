@@ -10,9 +10,23 @@ spring:
     chat:
       client:
         enabled: false
-
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
     openai:
       api-key: test
+  datasource:
+    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true # 打印SQL语句（开发环境用）
+    properties:
+      hibernate:
+        format_sql: true  # 格式化SQL
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # 指定MySQL方言
 
 
 

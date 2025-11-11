@@ -42,7 +42,7 @@ public class PPTGenerationNode implements NodeAction {
 //        GraphResponse<StreamingOutput> pptGenerationNodeAgentStream3 = GraphResponse.of(new StreamingOutput("哈哈", "pptGenNode", state));
         Flux<GraphResponse<StreamingOutput>> map = Flux.just(
                         new StreamingOutput("开始生成ppt,请稍等", "pptGenNode", state),
-                        new StreamingOutput("成功了，请下载查看<a>http://xxx</a>", "pptGenNode", state),
+                        new StreamingOutput("成功了，请下载查看<a>https://www.microsoft.com/zh-cn/microsoft-365/powerpoint</a>", "pptGenNode", state),
                         new StreamingOutput("哈哈", "pptGenNode", state)
                 )
                 .map(GraphResponse::of);

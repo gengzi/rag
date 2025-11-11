@@ -2,6 +2,7 @@ package com.gengzi.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.cloud.ai.graph.*;
 import com.alibaba.cloud.ai.graph.checkpoint.Checkpoint;
 import com.alibaba.cloud.ai.graph.checkpoint.config.SaverConfig;
@@ -10,12 +11,12 @@ import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
 import com.alibaba.cloud.ai.graph.state.StateSnapshot;
+import com.gengzi.dao.Conversation;
+import com.gengzi.dao.repository.ConversationRepository;
+import com.gengzi.dto.RagChatMessage;
 import com.gengzi.graph.TestGraphProcess;
 import com.gengzi.request.RagChatReq;
-import com.gengzi.response.ChatAnswerResponse;
-import com.gengzi.response.LlmTextRes;
-import com.gengzi.response.RagReference;
-import com.gengzi.response.ReferenceDocument;
+import com.gengzi.response.*;
 import com.gengzi.service.ChatService;
 import com.gengzi.tool.ppt.config.AiPPTConfig;
 import com.gengzi.tool.ppt.generate.AiPPTContentGenerationService;
@@ -27,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,10 +38,10 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.*;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -59,6 +62,13 @@ public class ChatServiceImpl implements ChatService {
 
     private MemorySaver memorySaver;
 
+
+    @Autowired
+    private JdbcChatMemoryRepository chatMemoryRepository;
+
+    @Autowired
+    private ConversationRepository conversationRepository;
+
     public ChatServiceImpl(@Qualifier("streamGraph") StateGraph stateGraph) throws GraphStateException {
         memorySaver = new MemorySaver();
         SaverConfig saverConfig = SaverConfig.builder().register(SaverEnum.MEMORY.getValue(), memorySaver).build();
@@ -68,6 +78,30 @@ public class ChatServiceImpl implements ChatService {
                 .compile(CompileConfig.builder().saverConfig(saverConfig).interruptBefore("humanFeedbackNode").build());
     }
 
+    public String chatRagCreate(RagChatReq req) {
+        // 向会话表插入一条会话信息
+        // 会话id
+        String conversationId = req.getConversationId();
+        LocalDateTime now = LocalDateTime.now();
+        // 为LocalDateTime指定时区（这里使用系统默认时区）
+        ZonedDateTime zonedDateTime = now.atZone(ZoneId.systemDefault());
+        // 获取毫秒级时间戳（从1970-01-01T00:00:00Z开始的毫秒数）
+        long millis = zonedDateTime.toInstant().toEpochMilli();
+        conversationRepository.save(Conversation.builder()
+                .id(conversationId)
+                .createDate(now)
+                .createTime(millis)
+                .updateDate(now)
+                .updateTime(millis)
+                .name(req.getQuestion())
+                .message("[]")
+                .reference("[]")
+                .userId("213214")
+                .knowledgebaseId("k_d20ab068c22a401088adec9728a5dcf8")
+                .build());
+        return conversationId;
+
+    }
 
     /**
      * 需要处理无agent 对话情况
@@ -78,6 +112,11 @@ public class ChatServiceImpl implements ChatService {
      */
     @Override
     public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(RagChatReq req) {
+
+        if (!conversationRepository.findById(req.getConversationId()).isPresent()) {
+            chatRagCreate(req);
+        }
+
         Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
         // 判断本次对话是否有agent 参与
         String agentId = req.getAgentId();
@@ -93,11 +132,34 @@ public class ChatServiceImpl implements ChatService {
 
     }
 
+    @Override
+    public Object chatRagMsgList(String conversationId) {
+        ConversationDetailsResponse conversationDetailsResponse = new ConversationDetailsResponse();
+        Optional<Conversation> conversationRepositoryById = conversationRepository.findById(conversationId);
+        if (conversationRepositoryById.isPresent()) {
+            Conversation conversation = conversationRepositoryById.get();
+            conversationDetailsResponse.setId(conversationId);
+            conversationDetailsResponse.setName(conversation.getName());
+            String reference = conversation.getReference();
+            // 将引入的文档信息转换成 rag 引用信息
+            String message = conversation.getMessage();
+            List<RagChatMessage> ragChatMessages = JSONUtil.toList(message, RagChatMessage.class);
+            conversationDetailsResponse.setMessage(ragChatMessages);
+            conversationDetailsResponse.setUpdateTime(conversation.getUpdateTime());
+            conversationDetailsResponse.setUpdateDate(conversation.getUpdateDate());
+            conversationDetailsResponse.setCreateTime(conversation.getCreateTime());
+            conversationDetailsResponse.setCreateDate(conversation.getCreateDate());
+            conversationDetailsResponse.setKnowledgebaseId(conversation.getKnowledgebaseId());
+            conversationDetailsResponse.setUserId(conversation.getUserId());
+        }
+        return conversationDetailsResponse;
+    }
+
     public Flux<ServerSentEvent<ChatAnswerResponse>> generateStream(RagChatReq req) {
         // 运行配置
         RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
         Optional<Checkpoint> checkpoint = memorySaver.get(runnableConfig);
-        logger.debug("checkpoint: {}" ,checkpoint);
+        logger.debug("checkpoint: {}", checkpoint);
 
         try {
             StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
@@ -116,6 +178,7 @@ public class ChatServiceImpl implements ChatService {
         // 入参
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuestion());
+        objectMap.put("conversationId", req.getConversationId());
         TestGraphProcess graphProcess = new TestGraphProcess(compile);
         // 输出
         Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
@@ -161,7 +224,7 @@ public class ChatServiceImpl implements ChatService {
                 .chatClientResponse();
         ChatAnswerResponse done = new ChatAnswerResponse();
         LlmTextRes llmTextRes = new LlmTextRes();
-        llmTextRes.setAnswer("[DONE]");
+        llmTextRes.setAnswer("🏷️");
         done.setContent(llmTextRes);
         done.setMessageType("text");
 

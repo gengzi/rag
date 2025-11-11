@@ -11,4 +11,6 @@ public interface ChatService {
 
     Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(RagChatReq req);
 
+    Object chatRagMsgList(String conversationId);
+
 }

@@ -9,6 +9,7 @@ import com.gengzi.tool.ppt.config.AiPPTConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,9 +41,11 @@ public class OutlineGenerationNode implements NodeAction {
         PromptTemplate DEFAULTPROMPTTEMPLATE = new PromptTemplate(aiPPTConfig.getOutlinePrompt());
         // 获取入参信息，通过入参调用llm 生成ppt大纲（流示输出 + 人类反馈）
         String query = state.value("query", "");
+        String conversationId = state.value("conversationId", "");
 
         Flux<ChatResponse> chatResponseFlux = this.chatClient.prompt()
                 .system(DEFAULTPROMPTTEMPLATE.getTemplate())
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .user(query)
                 .stream().chatResponse();
 
@@ -61,6 +64,9 @@ public class OutlineGenerationNode implements NodeAction {
         // TODO 可能影响数据读取
         Flux<GraphResponse<StreamingOutput>> outlineGenerationNodeStream =
                 generator.concatWith(Mono.just(GraphResponse.of(new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state))));
+
+        state.input(Map.of("outline_content", generator));
+
 
         return Map.of("outlineGenNode_content", outlineGenerationNodeStream);
 

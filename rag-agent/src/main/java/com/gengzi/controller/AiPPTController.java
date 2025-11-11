@@ -11,18 +11,17 @@ import com.gengzi.graph.GraphProcess;
 import com.gengzi.request.AiPPTGenerateReq;
 import com.gengzi.request.RagChatReq;
 import com.gengzi.response.ChatAnswerResponse;
+import com.gengzi.response.Result;
 import com.gengzi.service.AiPPTService;
 import com.gengzi.service.ChatService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
@@ -31,6 +30,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/aippt")
+@Tag(name = "测试", description = "测试")
 public class AiPPTController {
 
     private static final Logger logger = LoggerFactory.getLogger(AiPPTController.class);
@@ -118,6 +118,11 @@ public class AiPPTController {
     @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(@RequestBody RagChatReq req) {
         return chatService.chatRag(req);
+    }
+
+    @GetMapping("/chat/rag/msg/list")
+    public Result<?> chatRagMsgList(@RequestParam String conversationId) {
+        return Result.success(chatService.chatRagMsgList(conversationId));
     }
 
 }

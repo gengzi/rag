@@ -11,13 +11,16 @@ import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.LlmTextRes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 
 /**
@@ -31,7 +34,7 @@ public class TestGraphProcess {
 
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
-
+    private final Scheduler scheduler = Schedulers.boundedElastic();
 
     private CompiledGraph compiledGraph;
 
@@ -46,16 +49,18 @@ public class TestGraphProcess {
      * @param sink
      */
     public void processStream(Flux<NodeOutput> generator, Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink) {
-        Future<?> future = executor.submit(() -> {
-            generator
-                    .doOnNext(output -> {
-                        logger.info("output = {}", output);
-                        String nodeName = output.node();
-                        // start，end 不要展示
-                        if (output.isSTART() || output.isEND()) {
-                            return;
-                        }
-                        String content;
+
+
+        Mono.fromRunnable(() -> {
+                    generator
+                            .doOnNext(output -> {
+                                logger.info("output = {}", output);
+                                String nodeName = output.node();
+                                // start，end 不要展示
+                                if (output.isSTART() || output.isEND()) {
+                                    return;
+                                }
+                                String content;
 //                    if (output instanceof StreamingOutput streamingOutput) {
 //                        content = JSON.toJSONString(Map.of(nodeName, streamingOutput.chunk()));
 //                    } else {
@@ -65,50 +70,121 @@ public class TestGraphProcess {
 //                        content = JSON.toJSONString(nodeOutput);
 //                    }
 
-                        ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
-                        NodeType nodeType = NodeType.fromCode(nodeName);
+                                ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+                                NodeType nodeType = NodeType.fromCode(nodeName);
 
-                        if (nodeType.getOutputNode().endsWith("TextStream")) {
-                            LlmTextRes llmTextRes = new LlmTextRes();
-                            if (output instanceof StreamingOutput streamingOutput) {
-                                llmTextRes.setAnswer(streamingOutput.chunk());
-                            }
-                            chatAnswerResponse.setMessageType("text");
-                            chatAnswerResponse.setContent(llmTextRes);
+                                if (nodeType.getOutputNode().endsWith("TextStream")) {
+                                    LlmTextRes llmTextRes = new LlmTextRes();
+                                    if (output instanceof StreamingOutput streamingOutput) {
+                                        llmTextRes.setAnswer(streamingOutput.chunk());
+                                    }
+                                    chatAnswerResponse.setMessageType("text");
+                                    chatAnswerResponse.setContent(llmTextRes);
 
-                        } else if (nodeType.getOutputNode().endsWith("AgentStream")) {
-                            AgentGraphRes agentGraphRes = new AgentGraphRes();
-                            if (output instanceof StreamingOutput streamingOutput) {
-                                logger.info("agent streamingOutput = {}", streamingOutput);
-                                agentGraphRes.setContent(streamingOutput.chunk());
-                            }
-                            agentGraphRes.setNodeName(nodeName);
-                            // nodename 对应的标题名称
-                            agentGraphRes.setDisplayTitle(NodeType.fromCode(nodeName).getDescription());
-                            chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
-                            chatAnswerResponse.setContent(agentGraphRes);
+                                } else if (nodeType.getOutputNode().endsWith("AgentStream")) {
+                                    AgentGraphRes agentGraphRes = new AgentGraphRes();
+                                    if (output instanceof StreamingOutput streamingOutput) {
+                                        logger.info("agent streamingOutput = {}", streamingOutput);
+                                        agentGraphRes.setContent(streamingOutput.chunk());
+                                    }
+                                    agentGraphRes.setNodeName(nodeName);
+                                    // nodename 对应的标题名称
+                                    agentGraphRes.setDisplayTitle(NodeType.fromCode(nodeName).getDescription());
+                                    chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
+                                    chatAnswerResponse.setContent(agentGraphRes);
 
-                        } else {
-                            AgentGraphRes agentGraphRes = new AgentGraphRes();
-                            agentGraphRes.setNodeName(nodeName);
-                            agentGraphRes.setContent(JSONUtil.toJsonStr(output.state().data()));
-                            chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
-                            chatAnswerResponse.setContent(agentGraphRes);
+                                } else {
+                                    AgentGraphRes agentGraphRes = new AgentGraphRes();
+                                    agentGraphRes.setNodeName(nodeName);
+                                    agentGraphRes.setContent(JSONUtil.toJsonStr(output.state().data()));
+                                    chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
+                                    chatAnswerResponse.setContent(agentGraphRes);
 
-                        }
-                        sink.tryEmitNext(ServerSentEvent.builder(chatAnswerResponse).build());
+                                }
+                                sink.tryEmitNext(ServerSentEvent.builder(chatAnswerResponse).build());
 
 
-                    })
-                    .doOnComplete(() -> {
-                        // 正常完成
-                        sink.tryEmitComplete();
-                    })
-                    .doOnError(e -> {
-                        logger.error("Error occurred during streaming", e);
-                        sink.tryEmitError(e);
-                    })
-                    .subscribe();
-        } );
+                            })
+                            .doOnComplete(() -> {
+                                // 正常完成
+                                sink.tryEmitComplete();
+                            })
+                            .doOnError(e -> {
+                                logger.error("Error occurred during streaming", e);
+                                sink.tryEmitError(e);
+                            })
+                            // 进行流的订阅，才进行流处理
+                            .subscribe();
+                })
+                .subscribeOn(scheduler)
+                .subscribe();
+
+//        Future<?> future = executor.submit(() -> {
+//            logger.info("Before subscribe: = {}", Thread.currentThread().getName());
+//            generator
+//                    .doOnNext(output -> {
+//                        logger.info("output = {}", output);
+//                        String nodeName = output.node();
+//                        // start，end 不要展示
+//                        if (output.isSTART() || output.isEND()) {
+//                            return;
+//                        }
+//                        String content;
+////                    if (output instanceof StreamingOutput streamingOutput) {
+////                        content = JSON.toJSONString(Map.of(nodeName, streamingOutput.chunk()));
+////                    } else {
+////                        JSONObject nodeOutput = new JSONObject();
+////                        nodeOutput.put("data", output.state().data());
+////                        nodeOutput.put("node", nodeName);
+////                        content = JSON.toJSONString(nodeOutput);
+////                    }
+//
+//                        ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+//                        NodeType nodeType = NodeType.fromCode(nodeName);
+//
+//                        if (nodeType.getOutputNode().endsWith("TextStream")) {
+//                            LlmTextRes llmTextRes = new LlmTextRes();
+//                            if (output instanceof StreamingOutput streamingOutput) {
+//                                llmTextRes.setAnswer(streamingOutput.chunk());
+//                            }
+//                            chatAnswerResponse.setMessageType("text");
+//                            chatAnswerResponse.setContent(llmTextRes);
+//
+//                        } else if (nodeType.getOutputNode().endsWith("AgentStream")) {
+//                            AgentGraphRes agentGraphRes = new AgentGraphRes();
+//                            if (output instanceof StreamingOutput streamingOutput) {
+//                                logger.info("agent streamingOutput = {}", streamingOutput);
+//                                agentGraphRes.setContent(streamingOutput.chunk());
+//                            }
+//                            agentGraphRes.setNodeName(nodeName);
+//                            // nodename 对应的标题名称
+//                            agentGraphRes.setDisplayTitle(NodeType.fromCode(nodeName).getDescription());
+//                            chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
+//                            chatAnswerResponse.setContent(agentGraphRes);
+//
+//                        } else {
+//                            AgentGraphRes agentGraphRes = new AgentGraphRes();
+//                            agentGraphRes.setNodeName(nodeName);
+//                            agentGraphRes.setContent(JSONUtil.toJsonStr(output.state().data()));
+//                            chatAnswerResponse.setMessageType(ParticipantType.AGENT.getCode());
+//                            chatAnswerResponse.setContent(agentGraphRes);
+//
+//                        }
+//                        sink.tryEmitNext(ServerSentEvent.builder(chatAnswerResponse).build());
+//
+//
+//                    })
+//                    .doOnComplete(() -> {
+//                        // 正常完成
+//                        sink.tryEmitComplete();
+//                    })
+//                    .doOnError(e -> {
+//                        logger.error("Error occurred during streaming", e);
+//                        sink.tryEmitError(e);
+//                    })
+//                    // 进行流的订阅，才进行流处理
+//                    .subscribe();
+//            logger.info("After subscribe: = {}", Thread.currentThread().getName());
+//        });
     }
 }

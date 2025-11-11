@@ -6,12 +6,11 @@ import lombok.Data;
 @Data
 public class ChatAnswerResponse {
 
-
     private String chatid;
 
     private String answer;
 
-
     private RagReference reference;
+
 
 }

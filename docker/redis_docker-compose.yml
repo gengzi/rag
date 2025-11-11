@@ -1,0 +1,13 @@
+services:
+  redis:
+    image: redis:7.2  # 指定 Redis 版本（推荐使用具体版本，避免自动更新带来的兼容问题）
+    container_name: redis-server  # 容器名称
+    restart: always  # 容器退出后自动重启（包括开机自启）
+    ports:
+      - "6379:6379"  # 端口映射（宿主机:容器内）
+    volumes:
+      - E:\redis\conf:/etc/redis  # 挂载配置文件目录（宿主机 -> 容器）
+      - E:\redis\data:/data  # 挂载数据目录（持久化存储）
+    command: redis-server /etc/redis/redis.conf  # 指定配置文件启动
+    environment:
+      - TZ=Asia/Shanghai  # 时区设置（避免日志时间错乱）

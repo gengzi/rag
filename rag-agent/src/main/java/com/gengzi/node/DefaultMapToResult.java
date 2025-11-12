@@ -1,6 +1,8 @@
 package com.gengzi.node;
 
 import cn.hutool.core.util.StrUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatResponse;
 
 import java.util.Map;
@@ -12,6 +14,7 @@ import java.util.function.Function;
  */
 public class DefaultMapToResult implements Function<ChatResponse, Map<String, Object>> {
 
+    private static final Logger logger = LoggerFactory.getLogger(HumanFeedbackNode.class);
 
     private final String key;
 
@@ -25,6 +28,7 @@ public class DefaultMapToResult implements Function<ChatResponse, Map<String, Ob
 
     @Override
     public Map<String, Object> apply(ChatResponse chatResponse) {
+        logger.info("DefaultMapToResult apply");
         String text = chatResponse.getResult().getOutput().getText();
         // 原样存储text内容，不做处理
         return Map.of(key, text);

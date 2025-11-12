@@ -29,7 +29,7 @@ public class PptOutlineParser {
     // 章节：## 章节X：后接章节标题内容（捕获章节号和标题）
     private static final Pattern CHAPTER_PATTERN = Pattern.compile("^## 章节(\\d+)：(.*)$");
     // 小结：### 小结X.Y：后接小结标题内容（捕获章节号、小结号和标题）
-    private static final Pattern SECTION_PATTERN = Pattern.compile("^### 小结(\\d+)\\.(\\d+)：(.*)$");
+    private static final Pattern SECTION_PATTERN = Pattern.compile("^### 小结(\\d+)\\.(\\d+) (.*)$");
 
     /**
      * 验证PPT大纲格式并提取信息

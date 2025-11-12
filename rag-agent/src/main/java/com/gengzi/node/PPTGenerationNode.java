@@ -1,10 +1,19 @@
 package com.gengzi.node;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.graph.GraphResponse;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
+import com.gengzi.response.BusinessException;
 import com.gengzi.tool.ppt.config.AiPPTConfig;
+import com.gengzi.tool.ppt.dto.ParseResult;
+import com.gengzi.tool.ppt.generate.AiPPTContentGenerationService;
+import com.gengzi.tool.ppt.generate.PptGenerationService;
+import com.gengzi.tool.ppt.model.PptMasterModel;
+import com.gengzi.tool.ppt.model.SlideData;
+import com.gengzi.tool.ppt.parser.PptMasterParser;
+import com.gengzi.tool.ppt.util.PptOutlineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -12,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
@@ -31,26 +42,56 @@ public class PPTGenerationNode implements NodeAction {
     @Qualifier("deepseekChatClientNoRag")
     private ChatClient chatClient;
 
+    @Autowired
+    private AiPPTContentGenerationService aiPPTContentGenerationService;
+
+    @Autowired
+    private PptGenerationService pptGenerationService;
+    @Autowired
+    private PptMasterParser pptMasterParser;
+
+
     @Override
-    public Map<String, Object> apply(OverAllState state) {
+    public Map<String, Object> apply(OverAllState state) throws Exception {
         logger.info("开始执行ppt生成");
         String feedback = state.value("human_feedback", "");
         logger.info("用户反馈：{}", feedback);
+        // 获取输出的ppt大纲，进行ppt生成任务
+        String outlineGenNodeContent = state.value("outlineGenNode_content", "");
+        logger.info("大纲内容：{}", outlineGenNodeContent);
+        // 为空就提示用户异常
+        if (StrUtil.isBlank(outlineGenNodeContent)) {
+            // TODO 还不能抛出异常，会导致流程卡主
+            throw new BusinessException("outlineGenNode_content is not blank");
+        }
+        // 通过正则表达式核验大纲内容是否符合格式,并返回大纲各个节点信息
+        ParseResult parseResult = PptOutlineParser.validateAndExtract(outlineGenNodeContent);
+        if (!parseResult.isValid()) {
+            logger.error("大纲内容不符合要求:{}", parseResult.getErrorMsg());
+            // TODO 考虑agent设计时 重新生成（正常不应该错误）
+            throw new BusinessException("大纲内容不符合要求");
+        }
+        Flux<GraphResponse<StreamingOutput>> responseFlux = Flux.just(
+                new StreamingOutput(" * \uD83E\uDDE0 生成ppt中，请稍候... \n", "pptGenNode", state)
+        ).map(GraphResponse::of);
 
-//        GraphResponse<StreamingOutput> pptGenerationNodeAgentStream = GraphResponse.of(new StreamingOutput("开始生成ppt,请稍等", "pptGenNode", state));
-//        GraphResponse<StreamingOutput> pptGenerationNodeAgentStream2 = GraphResponse.of(new StreamingOutput("成功了，请下载查看<a>http://xxx</a>", "pptGenNode", state));
-//        GraphResponse<StreamingOutput> pptGenerationNodeAgentStream3 = GraphResponse.of(new StreamingOutput("哈哈", "pptGenNode", state));
-        Flux<GraphResponse<StreamingOutput>> map = Flux.just(
-                        new StreamingOutput("开始生成ppt,请稍等", "pptGenNode", state),
-                        new StreamingOutput("成功了，请下载查看<a>https://www.microsoft.com/zh-cn/microsoft-365/powerpoint</a>", "pptGenNode", state),
-                        new StreamingOutput("哈哈", "pptGenNode", state)
-                )
-                .map(GraphResponse::of);
-//        Flux<GraphResponse<StreamingOutput>> pptsGenerationNodeStream =
-//                Flux.just(pptGenerationNodeAgentStream, pptGenerationNodeAgentStream2,pptGenerationNodeAgentStream3)
-//                        .doOnNext(msg -> logger.info("📤 发送消息: {}", msg.getOutput()));
 
-        return Map.of("PPTGenerationNodeAgentStream", map);
+        Mono<GraphResponse<StreamingOutput>> gen = Mono.fromCallable(() -> {
+            // 通过母版解析
+            PptMasterModel pptMasterModel = pptMasterParser.parseMaster("ppt/母版11.potx");
+            // 将解析的母版信息与大纲信息进行匹配，分别针对不同的页面，生成对应的内容
+            List<SlideData> slideDatas = aiPPTContentGenerationService.generateContent(pptMasterModel, parseResult);
 
+            pptGenerationService.generatePPT("ppt/母版11.potx", "F:\\baidu\\output.pptx", slideDatas);
+
+            StreamingOutput streamingOutput = new StreamingOutput(" * ✅ 已完成 \n", "pptGenNode", state);
+            return GraphResponse.of(streamingOutput);
+        }).subscribeOn(Schedulers.boundedElastic());
+
+        Flux<GraphResponse<StreamingOutput>> result = responseFlux.concatWith(gen).concatWith(Mono.fromCallable(() -> {
+            Map<String, String> filePath = Map.of("file_path", "F:\\baidu\\output.pptx");
+            return GraphResponse.done(filePath);
+        }));
+        return Map.of("pptGenNode", result);
     }
 }

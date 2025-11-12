@@ -141,7 +141,7 @@ public class ChatStreamAspect {
                             stringBuilder.append("\n" + llmTextRes.getAnswer() + "\n");
                         }
                         if (content instanceof AgentGraphRes agentGraphRes) {
-                            String displayTitle = agentGraphRes.getDisplayTitle();
+                            String displayTitle = StrUtil.isBlank(agentGraphRes.getDisplayTitle()) ? agentGraphRes.getNodeName() : agentGraphRes.getDisplayTitle();
                             String agentContent = agentGraphRes.getContent();
                             stringBuilder.append("\n节点" + displayTitle + "执行结果:" + agentContent + "\n");
                         }

@@ -11,7 +11,6 @@ import com.gengzi.response.ChatAnswerResponse;
 import com.gengzi.response.LlmTextRes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -49,8 +48,6 @@ public class TestGraphProcess {
      * @param sink
      */
     public void processStream(Flux<NodeOutput> generator, Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink) {
-
-
         Mono.fromRunnable(() -> {
                     generator
                             .doOnNext(output -> {
@@ -60,6 +57,12 @@ public class TestGraphProcess {
                                 if (output.isSTART() || output.isEND()) {
                                     return;
                                 }
+                                // 人类反馈节点也不展示
+                                if(NodeType.HUMAN_FEEDBACK_NODE.getCode().equals(nodeName)){
+                                    return;
+                                }
+
+
                                 String content;
 //                    if (output instanceof StreamingOutput streamingOutput) {
 //                        content = JSON.toJSONString(Map.of(nodeName, streamingOutput.chunk()));
@@ -119,7 +122,7 @@ public class TestGraphProcess {
                 .subscribeOn(scheduler)
                 .subscribe();
 
-//        Future<?> future = executor.submit(() -> {
+//         executor.submit(() -> {
 //            logger.info("Before subscribe: = {}", Thread.currentThread().getName());
 //            generator
 //                    .doOnNext(output -> {

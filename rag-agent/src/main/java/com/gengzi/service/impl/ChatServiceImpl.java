@@ -112,13 +112,13 @@ public class ChatServiceImpl implements ChatService {
      */
     @Override
     public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(RagChatReq req) {
-
+        // 创建聊天会话
         if (!conversationRepository.findById(req.getConversationId()).isPresent()) {
             chatRagCreate(req);
         }
-
+        // 定义Sinks 用于从各个图节点发送数据到前端
         Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
-        // 判断本次对话是否有agent 参与
+        // 判断本次对话是否有agent参与
         String agentId = req.getAgentId();
         String conversationId = req.getConversationId();
         if (StrUtil.isNotBlank(agentId)) {

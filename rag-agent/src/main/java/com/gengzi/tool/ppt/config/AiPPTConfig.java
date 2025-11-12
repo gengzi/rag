@@ -14,4 +14,6 @@ public class AiPPTConfig {
 
     private String pageGenPrompt;
 
+    private String humanFeedbackPrompt;
+
 }

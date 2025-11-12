@@ -50,9 +50,8 @@ public class OutlineGenerationNode implements NodeAction {
                 .user(query)
                 .stream().chatResponse();
 
-
         var outlineGenNodeContentMap = new AtomicReference<Map<String, Object>>(null);
-        ;
+
         var streamingOutput = new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state);
         // 异步内容到前端显示
         Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder()
@@ -67,22 +66,17 @@ public class OutlineGenerationNode implements NodeAction {
                     logger.info("大纲生成完毕");
                 });
 
-//        // **不能这样写，会导致返回流数据不存入 OverAllState中，因为 Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder() 方法中就已经将数据进行合并 设置到
-        Flux<GraphResponse<StreamingOutput>> outlineGenerationNodeStream =
-                generator.concatWith(Mono.just(
-                        GraphResponse.of(new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state))
-                ).doOnNext(data -> {
-                    logger.debug("大纲生成完毕");
-                }));
+        // **不能这样写，会导致返回流数据不存入 OverAllState中，因为 Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder() 方法中就已经将数据进行合并 设置到
         // concatWith 顺序拼接两个响应式流（Publisher），确保第一个响应式流完成后，再执行第二个响应式流。两个流可以返回类型，甚至是结构不同的数据
-//        Flux<GraphResponse<StreamingOutput>> outlineGenNodeContent =
-//                outlineGenerationNodeStream.concatWith(Mono.just(GraphResponse.done(outlineGenNodeContentMap.get())));
-//
-//        // TODO 看在下一个节点是否能获取数据
-
+//        Flux<GraphResponse<StreamingOutput>> outlineGenerationNodeStream =
+//                generator.concatWith(Mono.just(
+//                        GraphResponse.of(new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state))
+//                ).doOnNext(data -> {
+//                    logger.debug("大纲生成完毕");
+//                }));
 
         // 返回map后，会自动合并到全局状态数据中
-        return Map.of("outlineGenNode_content", outlineGenerationNodeStream);
+        return Map.of("outlineGenNode_content", generator);
 
     }
 }

@@ -82,6 +82,7 @@ export default function TestPage() {
   const [showPptTag, setShowPptTag] = useState(false); // 是否显示PPT标签
   const [assistantMessageId, setAssistantMessageId] = useState(''); // 当前助手消息ID
   const [loadingChat, setLoadingChat] = useState(true); // 加载聊天记录状态
+  const [threadId, setThreadId] = useState<string>(''); // 对话线程ID
 
   // 获取聊天记录
   const fetchChatHistory = async () => {
@@ -104,8 +105,10 @@ export default function TestPage() {
       // 根据实际API返回的数据结构解析消息
       if (data.code === 200 && data.data && Array.isArray(data.data.message)) {
         const formattedMessages: Message[] = [];
+        let latestThreadId = '';
         
         data.data.message.forEach((msg: any) => {
+
           if (msg.content && Array.isArray(msg.content)) {
             // 为每条消息创建一个完整的processFlow，参考agent-answer.tsx的实现
             const processNodes: ProcessNode[] = [];
@@ -113,6 +116,10 @@ export default function TestPage() {
             
             // 处理每个消息的content数组，构建完整的流程节点列表
             msg.content.forEach((contentItem: any, index: number) => {
+              // 提取并更新threadId（取最后一个值）
+              if (contentItem.threadId !== undefined) {
+                latestThreadId = contentItem.threadId || '';
+              } 
               if (contentItem.messageType === 'text') {
                 // 文本类型节点 (LLM输出)
                 const answer = contentItem.content?.answer || '';
@@ -203,6 +210,10 @@ export default function TestPage() {
           }
         });
         
+        // 设置最新的threadId
+        if (latestThreadId) {
+          setThreadId(latestThreadId);
+        }
         setMessages(formattedMessages);
       }
       
@@ -268,16 +279,11 @@ export default function TestPage() {
       // 清空输入框，但保留PPT标签状态
       setInput('');
 
-      // 生成随机sessionId
-      const generateSessionId = () => {
-        return Math.floor(Math.random() * 10000).toString();
-      };
-
       // 准备请求参数
       const requestData = {
         question: input.trim(),
         conversationId: "57", // 固定为55
-        sessionId: "123456", // 每次随机生成
+        threadId: threadId, // 使用存储的线程ID，如果为空则提交空字符串
         agentId: showPptTag ? "1" : "" // 有PPT标签时设置为1，否则为空
       };
 
@@ -339,6 +345,9 @@ export default function TestPage() {
             // 解析JSON数据
             const data = JSON.parse(jsonStr);
             console.log("收到流式数据:", data);
+            
+            // 提取threadId
+            setThreadId(data.threadId || '');
 
             // 根据消息类型处理
             if (data.messageType === 'text') {

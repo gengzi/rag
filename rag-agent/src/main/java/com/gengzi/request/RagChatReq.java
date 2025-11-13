@@ -19,7 +19,7 @@ public class RagChatReq {
     /**
      * 标记一次连续的对话信息 （agent 连续操作的对话信息流（比如人类反馈））
      */
-    private String sessionId;
+    private String threadId;
 
 
     /**

@@ -30,9 +30,9 @@ public class PptMasterModel {
     private List<PptMasterElement> masterElements = new ArrayList<>();
 
     // 快速查找版式
-    public PptLayout getLayoutByName(String layoutName) {
-        return layoutMap.get(layoutName);
-    }
+//    public PptLayout getLayoutByName(String layoutName) {
+//        return layoutMap.get(layoutName);
+//    }
 
     
     public PptLayout getLayoutByType(XSLFSlideLayoutType type) {

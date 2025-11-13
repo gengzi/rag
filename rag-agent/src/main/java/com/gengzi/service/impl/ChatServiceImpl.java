@@ -29,7 +29,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
-import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -62,6 +61,7 @@ public class ChatServiceImpl implements ChatService {
 
     private MemorySaver memorySaver;
 
+    private TestGraphProcess testGraphProcess;
 
     @Autowired
     private JdbcChatMemoryRepository chatMemoryRepository;
@@ -75,7 +75,8 @@ public class ChatServiceImpl implements ChatService {
 //        this.compile = stateGraph
 //                .compile(CompileConfig.builder().saverConfig(saverConfig).build());
         this.compile = stateGraph
-                .compile(CompileConfig.builder().saverConfig(saverConfig).interruptBefore("humanFeedbackNode").build());
+                .compile(CompileConfig.builder().saverConfig(saverConfig).interruptBefore("humanFeedbackNode","pptGenNode").build());
+        testGraphProcess = new TestGraphProcess(compile);
     }
 
     public String chatRagCreate(RagChatReq req) {
@@ -157,33 +158,35 @@ public class ChatServiceImpl implements ChatService {
 
     public Flux<ServerSentEvent<ChatAnswerResponse>> generateStream(RagChatReq req) {
         // 运行配置
-        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
-        Optional<Checkpoint> checkpoint = memorySaver.get(runnableConfig);
-        logger.debug("checkpoint: {}", checkpoint);
-
-        try {
-            StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
-            // TODO 需要判断下一个节点是 人类反馈节点才进入
-            if (stateSnapshot != null && !stateSnapshot.next().equals(StateGraph.END)) {
-                try {
-                    return resume(req);
-                } catch (GraphRunnerException e) {
-                    throw new RuntimeException(e);
+        if(StrUtil.isNotBlank(req.getThreadId())){
+            RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getThreadId()).build();
+            Optional<Checkpoint> checkpoint = memorySaver.get(runnableConfig);
+            logger.debug("checkpoint: {}", checkpoint);
+            try {
+                StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
+                // TODO 需要判断下一个节点是 人类反馈节点才进入
+                if (stateSnapshot != null && !stateSnapshot.next().equals(StateGraph.END)) {
+                    try {
+                        return resume(req);
+                    } catch (GraphRunnerException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+            } catch (Exception e) {
+                logger.warn("不是人类反馈节点");
             }
-
-        } catch (Exception e) {
-
         }
+
         // 入参
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuestion());
         objectMap.put("conversationId", req.getConversationId());
-        TestGraphProcess graphProcess = new TestGraphProcess(compile);
+        String threadId = testGraphProcess.createSession(req.getConversationId());
+        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(threadId).build();
         // 输出
         Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
         Flux<NodeOutput> nodeOutputFlux = compile.fluxStream(objectMap, runnableConfig);
-        graphProcess.processStream(nodeOutputFlux, sink);
+        testGraphProcess.processStream(threadId, nodeOutputFlux, sink);
 
         return sink.asFlux()
                 .doOnCancel(() -> logger.info("Client disconnected from stream"))
@@ -192,7 +195,7 @@ public class ChatServiceImpl implements ChatService {
 
 
     public Flux<ServerSentEvent<ChatAnswerResponse>> resume(RagChatReq req) throws GraphRunnerException {
-        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
+        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getThreadId()).build();
         StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
         OverAllState state = stateSnapshot.state();
         state.withResume();
@@ -204,9 +207,9 @@ public class ChatServiceImpl implements ChatService {
 
         // Create a unicast sink to emit ServerSentEvents
         Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
-        TestGraphProcess graphProcess = new TestGraphProcess(this.compile);
+
         Flux<NodeOutput> resultFuture = compile.fluxStreamFromInitialNode(state, runnableConfig);
-        graphProcess.processStream(resultFuture, sink);
+        testGraphProcess.processStream(req.getThreadId(), resultFuture, sink);
 
         return sink.asFlux()
                 .doOnCancel(() -> logger.info("Client disconnected from stream"))

@@ -90,6 +90,9 @@ public class AiPPTController {
 
     @PostMapping(value = "/resume", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> resume(@RequestBody AiPPTGenerateReq req) throws GraphRunnerException {
+
+
+
         RunnableConfig runnableConfig = RunnableConfig.builder().threadId(req.getSessionId()).build();
         StateSnapshot stateSnapshot = this.compile.getState(runnableConfig);
         OverAllState state = stateSnapshot.state();
@@ -112,9 +115,6 @@ public class AiPPTController {
     }
 
 
-
-
-
     @PostMapping(value = "/chat/rag", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<ChatAnswerResponse>> chatRag(@RequestBody RagChatReq req) {
         return chatService.chatRag(req);
@@ -124,5 +124,17 @@ public class AiPPTController {
     public Result<?> chatRagMsgList(@RequestParam String conversationId) {
         return Result.success(chatService.chatRagMsgList(conversationId));
     }
+
+
+    /**
+     * ppt母版解析入口
+     */
+    @PostMapping(value = "/ppt/motherboadr/parse")
+    public void pptMotherboardParse(@RequestParam String motherboardName) throws Exception {
+        // 根据母版名称解析母版信息
+        aiPPTService.pptMotherboardParse(motherboardName);
+
+    }
+
 
 }

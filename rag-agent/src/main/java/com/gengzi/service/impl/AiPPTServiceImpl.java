@@ -1,13 +1,14 @@
 package com.gengzi.service.impl;
 
+import cn.hutool.json.JSONUtil;
+import com.gengzi.dao.PptMaster;
+import com.gengzi.dao.repository.PptMasterRepository;
 import com.gengzi.request.AiPPTGenerateReq;
 import com.gengzi.service.AiPPTService;
 import com.gengzi.tool.ppt.config.AiPPTConfig;
 import com.gengzi.tool.ppt.dto.ParseResult;
-import com.gengzi.tool.ppt.enums.XSLFSlideLayoutType;
 import com.gengzi.tool.ppt.generate.AiPPTContentGenerationService;
 import com.gengzi.tool.ppt.generate.PptGenerationService;
-import com.gengzi.tool.ppt.handler.DefaultSlideHandler;
 import com.gengzi.tool.ppt.model.PptMasterModel;
 import com.gengzi.tool.ppt.model.SlideData;
 import com.gengzi.tool.ppt.parser.PptMasterParser;
@@ -18,8 +19,9 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedList;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -36,12 +38,15 @@ public class AiPPTServiceImpl implements AiPPTService {
     @Qualifier("deepseekChatClientNoRag")
     private ChatClient chatClient;
 
-
     @Autowired
     private AiPPTConfig aiPPTConfig;
 
     @Autowired
     private AiPPTContentGenerationService aiPPTContentGenerationService;
+
+    @Autowired
+    private PptMasterRepository pptMasterRepository;
+
 
     @Override
     public void generatePPT(AiPPTGenerateReq req) throws Exception {
@@ -56,8 +61,8 @@ public class AiPPTServiceImpl implements AiPPTService {
                 .call().content();
         // 通过正则表达式核验大纲内容是否符合格式,并返回大纲各个节点信息
         ParseResult parseResult = PptOutlineParser.validateAndExtract(outline);
-        if(!parseResult.isValid()){
-            logger.error("大纲内容不符合要求:{}",parseResult.getErrorMsg());
+        if (!parseResult.isValid()) {
+            logger.error("大纲内容不符合要求:{}", parseResult.getErrorMsg());
             // TODO 考虑agent设计时 重新生成（正常不应该错误）
             return;
         }
@@ -66,5 +71,21 @@ public class AiPPTServiceImpl implements AiPPTService {
         List<SlideData> slideDatas = aiPPTContentGenerationService.generateContent(pptMasterModel, parseResult);
 
         pptGenerationService.generatePPT("ppt/母版11.potx", "F:\\baidu\\output.pptx", slideDatas);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void pptMotherboardParse(String motherboardName) throws Exception {
+        // TODO 可更正为从对象存储中获取
+        String filePath = "ppt/" + motherboardName;
+        PptMasterModel pptMasterModel = pptMasterParser.parseMaster(filePath);
+        // 进行入库
+        PptMaster pptMaster = new PptMaster();
+        pptMaster.setName(motherboardName);
+        pptMaster.setPptLayout(JSONUtil.toJsonStr(pptMasterModel.getLayouts()));
+        pptMaster.setFileId(filePath);
+        pptMaster.setCreatedTime(Instant.now());
+        pptMaster.setUpdatedTime(Instant.now());
+        pptMasterRepository.save(pptMaster);
     }
 }

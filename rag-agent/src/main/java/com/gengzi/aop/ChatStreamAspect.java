@@ -32,6 +32,10 @@ import reactor.core.publisher.Flux;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
+
+/**
+ * 聊天流响应切面
+ */
 @Slf4j
 @Aspect
 @Component
@@ -151,7 +155,7 @@ public class ChatStreamAspect {
                     chatMemory.add(req.getConversationId(), List.of(userMessage));
                     messages.add(new AssistantMessage(stringBuilder.toString()));
                     chatMemory.add(req.getConversationId(), messages);
-                    saveUserConversation(req.getConversationId(), chatId, req.getQuestion(), req.getSessionId());
+                    saveUserConversation(req.getConversationId(), chatId, req.getQuestion(), req.getThreadId());
                     saveAssistantConversation(req.getConversationId(), chatId, chatAnswerResponses);
                 })
                 // 3. 处理异常

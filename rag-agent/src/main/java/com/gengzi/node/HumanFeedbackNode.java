@@ -68,7 +68,7 @@ public class HumanFeedbackNode implements NodeAction {
         String nextStep = "pptGenNode";
         if(!entity.hasIssue()){
             // 满意，进入生成节点
-            nextStep = "pptGenNode";
+            nextStep = "motherboadrChoiceNode";
         }else{
             // 不满意，进入大纲生成节点
             nextStep = "outlineGenNode";

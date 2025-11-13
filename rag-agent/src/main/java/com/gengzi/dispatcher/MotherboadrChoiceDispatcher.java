@@ -21,9 +21,9 @@ import com.alibaba.cloud.ai.graph.action.EdgeAction;
 
 import static com.alibaba.cloud.ai.graph.StateGraph.END;
 
-public class HumanFeedbackDispatcher implements EdgeAction {
+public class MotherboadrChoiceDispatcher implements EdgeAction {
 
-	public HumanFeedbackDispatcher() {
+	public MotherboadrChoiceDispatcher() {
 	}
 
 	/**
@@ -35,7 +35,7 @@ public class HumanFeedbackDispatcher implements EdgeAction {
 	 */
 	@Override
 	public String apply(OverAllState state) throws Exception {
-		return (String) state.value("human_next_node", END);
+		return (String) state.value("motherboadrChoice_next_node", "pptGenNode");
 	}
 
 }

@@ -25,7 +25,7 @@ public class ChatAnswerResponse {
     private String messageType;
 
 
-    private String sessionId;
+    private String threadId;
 
 
 

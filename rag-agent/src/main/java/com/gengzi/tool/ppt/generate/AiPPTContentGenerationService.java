@@ -201,7 +201,7 @@ public class AiPPTContentGenerationService {
         List<PptPlaceholder> placeholders = pptLayout.getPlaceholders();
         AiPPTPageGenerate aiPPTPageGenerate = new AiPPTPageGenerate();
         aiPPTPageGenerate.setPageType(XSLFSlideLayoutType.TEXT_CONTENT_PAGE.getPageName());
-        aiPPTPageGenerate.setOutlineInfo(Map.of("summaryTitle", section.getChapterNum() + " " + section.getSectionTitle()));
+        aiPPTPageGenerate.setOutlineInfo(Map.of("summaryTitle", section.getSectionNum() + " " + section.getSectionTitle()));
         LinkedList<AiPPTPlaceholder> aiPPTPlaceholders = getAiPPTPlaceholders(placeholders);
         aiPPTPageGenerate.setPlaceholders(aiPPTPlaceholders);
         String content = chatClient.prompt().system(aiPPTConfig.getPageGenPrompt())

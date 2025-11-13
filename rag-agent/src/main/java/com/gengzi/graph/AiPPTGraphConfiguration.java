@@ -10,6 +10,7 @@ import com.alibaba.cloud.ai.graph.exception.GraphStateException;
 import com.alibaba.cloud.ai.graph.state.strategy.ReplaceStrategy;
 import com.gengzi.dispatcher.HumanFeedbackDispatcher;
 import com.gengzi.node.HumanFeedbackNode;
+import com.gengzi.node.MotherboadrChoiceNode;
 import com.gengzi.node.OutlineGenerationNode;
 import com.gengzi.node.PPTGenerationNode;
 import org.slf4j.Logger;
@@ -38,6 +39,9 @@ public class AiPPTGraphConfiguration {
 
     @Autowired
     private PPTGenerationNode pptGenerationNode;
+
+    @Autowired
+    private MotherboadrChoiceNode motherboadrChoiceNode;
 
     @Bean
     public StateGraph streamGraph() throws GraphStateException {
@@ -73,16 +77,16 @@ public class AiPPTGraphConfiguration {
                 .addNode("humanFeedbackNode", AsyncNodeAction.node_async(humanFeedbackNode))
                 // ppt生成节点
                 .addNode("pptGenNode", AsyncNodeAction.node_async(pptGenerationNode))
-
-
-
+                // 模板选择节点
+                .addNode("motherboadrChoiceNode", AsyncNodeAction.node_async(motherboadrChoiceNode))
 
                 // 添加边
                 .addEdge(StateGraph.START, "outlineGenNode")
                 .addEdge("outlineGenNode", "humanFeedbackNode")
                 // 条件边
                 .addConditionalEdges("humanFeedbackNode", AsyncEdgeAction.edge_async(new HumanFeedbackDispatcher()),
-                        Map.of("outlineGenNode", "outlineGenNode", "pptGenNode", "pptGenNode"))
+                        Map.of("outlineGenNode", "outlineGenNode", "motherboadrChoiceNode", "motherboadrChoiceNode"))
+                .addEdge("motherboadrChoiceNode", "pptGenNode")
                 .addEdge("pptGenNode", StateGraph.END);
 
         // 添加 PlantUML 打印

@@ -1,5 +1,6 @@
 package com.gengzi.graph;
 
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.cloud.ai.graph.CompiledGraph;
 import com.alibaba.cloud.ai.graph.NodeOutput;
@@ -18,6 +19,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -34,12 +36,19 @@ public class TestGraphProcess {
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
     private final Scheduler scheduler = Schedulers.boundedElastic();
-
+    private final ConcurrentHashMap<String, Integer> sessionCountMap = new ConcurrentHashMap<>();
     private CompiledGraph compiledGraph;
 
     public TestGraphProcess(CompiledGraph compiledGraph) {
         this.compiledGraph = compiledGraph;
     }
+
+
+    public String createSession(String conversationId) {
+//        Integer merge = sessionCountMap.merge(conversationId, 1, Integer::sum);
+        return String.format("%s_%s", conversationId, IdUtil.simpleUUID());
+    }
+
 
     /**
      * 从大模型中获取结果，并结果推送到客户端
@@ -47,7 +56,7 @@ public class TestGraphProcess {
      * @param generator
      * @param sink
      */
-    public void processStream(Flux<NodeOutput> generator, Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink) {
+    public void processStream(String threadId,Flux<NodeOutput> generator, Sinks.Many<ServerSentEvent<ChatAnswerResponse>> sink) {
         Mono.fromRunnable(() -> {
                     generator
                             .doOnNext(output -> {
@@ -58,7 +67,7 @@ public class TestGraphProcess {
                                     return;
                                 }
                                 // 人类反馈节点也不展示
-                                if(NodeType.HUMAN_FEEDBACK_NODE.getCode().equals(nodeName)){
+                                if (NodeType.HUMAN_FEEDBACK_NODE.getCode().equals(nodeName)) {
                                     return;
                                 }
 
@@ -74,6 +83,7 @@ public class TestGraphProcess {
 //                    }
 
                                 ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+                                chatAnswerResponse.setThreadId(threadId);
                                 NodeType nodeType = NodeType.fromCode(nodeName);
 
                                 if (nodeType.getOutputNode().endsWith("TextStream")) {
@@ -114,7 +124,15 @@ public class TestGraphProcess {
                             })
                             .doOnError(e -> {
                                 logger.error("Error occurred during streaming", e);
-                                sink.tryEmitError(e);
+                                ChatAnswerResponse chatAnswerResponse = new ChatAnswerResponse();
+                                chatAnswerResponse.setMessageType(ParticipantType.TEXT.getCode());
+                                chatAnswerResponse.setThreadId("");
+                                LlmTextRes llmTextRes = new LlmTextRes();
+                                llmTextRes.setAnswer("# 系统异常，请稍后~ ");
+                                chatAnswerResponse.setContent(llmTextRes);
+                                sink.tryEmitNext(ServerSentEvent.builder(chatAnswerResponse).build());
+//                                sink.tryEmitError(e);
+                                sink.tryEmitComplete();
                             })
                             // 进行流的订阅，才进行流处理
                             .subscribe();

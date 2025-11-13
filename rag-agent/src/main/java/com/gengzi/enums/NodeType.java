@@ -3,6 +3,7 @@ package com.gengzi.enums;
 public enum NodeType {
     OUTLINE_GEN_NODE("outlineGenNode", "大纲节点", "OutlineGenerationNodeTextStream"),
     HUMAN_FEEDBACK_NODE("humanFeedbackNode", "人类反馈节点", ""),
+    MOTHERBOARD_CHOICE_NODE("motherboadrChoiceNode", "模板选择节点", "motherboadrChoiceNodeTextStream"),
     PPT_GEN_NODE("pptGenNode", "ppt生成节点", "PPTGenerationNodeAgentStream"),
     ;
     private final String code;

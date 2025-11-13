@@ -1,19 +1,3 @@
-/*
- * Copyright 2023-2025 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.gengzi.advisor;
 
 import java.util.ArrayList;
@@ -37,12 +21,10 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.util.Assert;
 
 /**
- * Memory is retrieved added as a collection of messages to the prompt
+ *  自定义advisor
+ *  只更新聊天记忆，不做入库处理。不依赖调用大模型产生的聊天记忆，将agent 的节点执行的任务结果和描述也加入聊天记忆中，便于llm 里面之前的聊天中，记录了那些信息
+ *  在agent节点执行后，将请求内容和格式化后的结果加入到聊天记忆中
  *
- * @author Christian Tzolov
- * @author Mark Pollack
- * @author Thomas Vitale
- * @since 1.0.0
  */
 public final class UpdateOnlyMessageChatMemoryAdvisor implements BaseChatMemoryAdvisor {
 
@@ -75,6 +57,14 @@ public final class UpdateOnlyMessageChatMemoryAdvisor implements BaseChatMemoryA
 		return this.scheduler;
 	}
 
+	/**
+	 * 获取聊天记忆，并在prompt 中添加之前的聊天记忆信息
+	 * 因为依赖会话id，需要在ChatClient 中配置会话id的参数值
+	 *
+	 * @param chatClientRequest
+	 * @param advisorChain
+	 * @return
+	 */
 	@Override
 	public ChatClientRequest before(ChatClientRequest chatClientRequest, AdvisorChain advisorChain) {
 		String conversationId = getConversationId(chatClientRequest.context(), this.defaultConversationId);

@@ -7,4 +7,6 @@ public interface AiPPTService {
 
     void generatePPT(AiPPTGenerateReq req) throws Exception;
 
+    void pptMotherboardParse(String motherboardName) throws Exception;
+
 }

@@ -27,4 +27,12 @@ public class SlideData {
     private Map<String, String> data;
     // 扩展数据（如图片URL等）
     private Map<String, Object> extraData;
+
+
+    /**
+     * 排序字段
+     */
+    private int order;
+
+
 }

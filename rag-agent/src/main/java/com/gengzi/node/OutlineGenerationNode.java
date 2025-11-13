@@ -46,13 +46,13 @@ public class OutlineGenerationNode implements NodeAction {
 
         Flux<ChatResponse> chatResponseFlux = this.chatClient.prompt()
                 .system(DEFAULTPROMPTTEMPLATE.getTemplate())
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
+//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .user(query)
                 .stream().chatResponse();
 
         var outlineGenNodeContentMap = new AtomicReference<Map<String, Object>>(null);
 
-        var streamingOutput = new StreamingOutput("\n\n大纲生成完毕，请看下是否可行，不可行请提出修改建议\n\n", "outlineGenNode", state);
+        var streamingOutput = new StreamingOutput("\n\n ⭐ PPT大纲生成完毕~，请输入修改“意见”或者输入“ok”即可生成。\n\n", "outlineGenNode", state);
         // 异步内容到前端显示
         Flux<GraphResponse<StreamingOutput>> generator = FluxConverter.builder()
                 .startingNode("outlineGenNode")

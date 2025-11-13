@@ -5,7 +5,6 @@ import com.alibaba.cloud.ai.graph.GraphResponse;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
-import com.gengzi.response.BusinessException;
 import com.gengzi.tool.ppt.config.AiPPTConfig;
 import com.gengzi.tool.ppt.dto.ParseResult;
 import com.gengzi.tool.ppt.generate.AiPPTContentGenerationService;
@@ -62,14 +61,18 @@ public class PPTGenerationNode implements NodeAction {
         // 为空就提示用户异常
         if (StrUtil.isBlank(outlineGenNodeContent)) {
             // TODO 还不能抛出异常，会导致流程卡主
-            throw new BusinessException("outlineGenNode_content is not blank");
+//            throw new BusinessException("outlineGenNode_content is not blank");
         }
         // 通过正则表达式核验大纲内容是否符合格式,并返回大纲各个节点信息
         ParseResult parseResult = PptOutlineParser.validateAndExtract(outlineGenNodeContent);
         if (!parseResult.isValid()) {
             logger.error("大纲内容不符合要求:{}", parseResult.getErrorMsg());
             // TODO 考虑agent设计时 重新生成（正常不应该错误）
-            throw new BusinessException("大纲内容不符合要求");
+//            throw new BusinessException("大纲内容不符合要求");
+            Flux<GraphResponse<StreamingOutput>> responseFlux = Flux.just(
+                    new StreamingOutput(" * \uD83D\uDCA5 生成ppt失败，请稍后再试... \n", "pptGenNode", state)
+            ).map(GraphResponse::of);
+            return Map.of("pptGenNode", responseFlux);
         }
         Flux<GraphResponse<StreamingOutput>> responseFlux = Flux.just(
                 new StreamingOutput(" * \uD83E\uDDE0 生成ppt中，请稍候... \n", "pptGenNode", state)
@@ -78,11 +81,12 @@ public class PPTGenerationNode implements NodeAction {
 
         Mono<GraphResponse<StreamingOutput>> gen = Mono.fromCallable(() -> {
             // 通过母版解析
-            PptMasterModel pptMasterModel = pptMasterParser.parseMaster("ppt/母版11.potx");
+            PptMasterModel pptMasterModel = pptMasterParser.parseMaster("ppt/母版类型-1.potx");
             // 将解析的母版信息与大纲信息进行匹配，分别针对不同的页面，生成对应的内容
             List<SlideData> slideDatas = aiPPTContentGenerationService.generateContent(pptMasterModel, parseResult);
 
-            pptGenerationService.generatePPT("ppt/母版11.potx", "F:\\baidu\\output.pptx", slideDatas);
+            String fileName = parseResult.getTotalTitle() + ".pptx";
+            pptGenerationService.generatePPT("ppt/母版类型-1.potx", "F:\\baidu\\" + fileName, slideDatas);
 
             StreamingOutput streamingOutput = new StreamingOutput(" * ✅ 已完成 \n", "pptGenNode", state);
             return GraphResponse.of(streamingOutput);

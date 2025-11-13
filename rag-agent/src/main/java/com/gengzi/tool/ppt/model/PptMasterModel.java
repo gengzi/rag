@@ -33,6 +33,7 @@ public class PptMasterModel {
     public PptLayout getLayoutByName(String layoutName) {
         return layoutMap.get(layoutName);
     }
+
     
     public PptLayout getLayoutByType(XSLFSlideLayoutType type) {
         return layouts.stream()

@@ -3,6 +3,7 @@ package com.gengzi.tool.ppt.enums;
 public enum XSLFSlideLayoutType {
     HOME_PAGE("首页", "home_page"),
     CATALOGUE_PAGE("目录页", "catalogue_page"),
+    CATALOGUE_TITLE_PAGE("章节标题页", "catalogue_title_page"),
     TEXT_CONTENT_PAGE("文本内容页", "text_content_page"),
     ENDING_PAGE("结尾页", "ending_page");;
 

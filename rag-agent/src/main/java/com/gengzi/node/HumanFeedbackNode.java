@@ -62,7 +62,7 @@ public class HumanFeedbackNode implements NodeAction {
         // 调用大模型分析用户是否满意和改进意见
         FeedbackData entity = this.chatClient.prompt()
                 .system(promptTemplate.getTemplate())
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
+//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .user(feedback)
                 .call().entity(FeedbackData.class);
         String nextStep = "pptGenNode";

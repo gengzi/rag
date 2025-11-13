@@ -624,8 +624,8 @@ export default function TestPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} gap-3 py-2`}>
+              {messages.map((message, index) => (
+                <div key={`${message.id}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} gap-3 py-2`}>
                   {message.role === 'assistant' && (
                     <div className="h-10 w-10 flex-shrink-0 rounded-full bg-secondary/10 p-2 text-secondary flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-105">
                       <Bot className="h-5 w-5" />
@@ -646,11 +646,12 @@ export default function TestPage() {
                       ) : (
                         <div className="space-y-4">
                           <AgentAnswer
-                            processFlow={message.processFlow}
-                            content={message.content}
-                            citations={message.citations}
-                            ragReference={message.ragReference}
-                          />
+                        key={`agent-answer-${message.id}`}
+                        processFlow={message.processFlow}
+                        content={message.content}
+                        citations={message.citations}
+                        ragReference={message.ragReference}
+                      />
                         </div>
                       )}
                       </CardContent>

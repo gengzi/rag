@@ -128,7 +128,14 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                 </span>
                 </div>
                 {node.description && (
-                    <p className="text-xs text-gray-600">{node.description}</p>
+                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+                        >
+                            {node.description}
+                        </ReactMarkdown>
+                    </div>
                 )}
               </div>
             </div>
@@ -174,8 +181,8 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                   {/* 引用内容，根据展开状态显示/隐藏 */}
                   {isRefExpanded && (
                       <div className="space-y-3">
-                        {node.reference!.map((ref, index) => (
-                            <div key={index} className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                        {node.reference!.map((ref) => (
+                            <div key={ref.chunkId || `${node.id}-${ref.documentId}`} className="bg-gray-50 border border-gray-200 rounded-md p-3">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h5 className="text-sm font-medium text-gray-900 flex items-center">

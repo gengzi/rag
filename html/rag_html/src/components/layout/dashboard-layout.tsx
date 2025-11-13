@@ -119,7 +119,7 @@ export default function DashboardLayout({
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link
-                  key={`${item.name}-${index}`}
+                  key={item.href}
                   href={item.href}
                   className={`group flex items-center rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${isActive
                     ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm"

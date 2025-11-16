@@ -54,12 +54,7 @@ import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoField;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -233,16 +228,16 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
 
             if (document instanceof MyOpenSearchDocument myOpenSearchDocument) {
                 OpenSearchExpandDocument openSearchExpandDocument = myOpenSearchDocument.getOpenSearchExpandDocument();
-                LocalDateTime createTime = openSearchExpandDocument.getCreateTime();
-                String createTimeStr = DateUtil.format(createTime, "yyyy-MM-dd HH:mm:ss.SSS");
-                LocalDateTime updateTime = openSearchExpandDocument.getUpdateTime();
-                String updateTimeStr = DateUtil.format(updateTime, "yyyy-MM-dd HH:mm:ss.SSS");
+//                LocalDateTime createTime = openSearchExpandDocument.getCreateTime();
+//                String createTimeStr = DateUtil.format(createTime, "yyyy-MM-dd HH:mm:ss.SSS");
+//                LocalDateTime updateTime = openSearchExpandDocument.getUpdateTime();
+//                String updateTimeStr = DateUtil.format(updateTime, "yyyy-MM-dd HH:mm:ss.SSS");
                 // 扩展，添加更多字段存入
                 ExtendedOpenSearchDocument openSearchDocumentv2 = new ExtendedOpenSearchDocument(document.getId(), document.getText(),
                         document.getMetadata(), embedding.get(documents.indexOf(document)),
                         openSearchExpandDocument.getUserId(), openSearchExpandDocument.getType(), openSearchExpandDocument.getConfidence(),
-                        createTimeStr,
-                        updateTimeStr);
+                        openSearchExpandDocument.getCreateTime(),
+                        openSearchExpandDocument.getUpdateTime());
                 bulkRequestBuilder.operations(op -> op
                         .index(idx -> idx.index(this.index)
                                 .id(openSearchDocumentv2.id())
@@ -320,7 +315,7 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
 
     public List<Document> similaritySearch(String query, float[] embedding, int topK, double similarityThreshold,
                                            Filter.Expression filterExpression) {
-        return similaritySearchV2(buildHybridQuery(query, embedding, topK, filterExpression));
+        return similaritySearchV2(buildHybridQuery(query, embedding, topK, similarityThreshold, filterExpression));
 //        return similaritySearch(
 //                this.useApproximateKnn ? buildApproximateQuery(embedding, topK, similarityThreshold, filterExpression)
 //                        : buildExactQuery(embedding, topK, similarityThreshold, filterExpression));
@@ -346,6 +341,7 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
             String query,
             float[] embedding,
             int topK,
+            double similarityThreshold,
             Filter.Expression filterExpression) {
 
         // 1. 将你的 Filter.Expression 转为 OpenSearch Query（假设你已有此方法）
@@ -357,9 +353,32 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
                         .field("q_1024_vec")
                         .vector(embedding)
                         .k(topK)
-                        .filter(filterQuery) // 👈 关键：KNN 支持 filter（OpenSearch 2.0+）
+                        .filter(Query
+                                .of(queryBuilder -> queryBuilder.queryString(queryStringQuerybuilder -> queryStringQuerybuilder
+                                        .query(getOpenSearchQueryString(filterExpression))))) // 👈 关键：KNN 支持 filter（OpenSearch 2.0+）
                 )
         );
+
+
+        Query knnSubQueryV2 = Query.of(queryBuilder -> queryBuilder.scriptScore(scriptScoreQueryBuilder -> {
+            scriptScoreQueryBuilder
+                    .query(queryBuilder2 -> queryBuilder2.queryString(queryStringQuerybuilder -> queryStringQuerybuilder
+                            .query(getOpenSearchQueryString(filterExpression))))
+                    .script(scriptBuilder -> scriptBuilder
+                            .inline(inlineScriptBuilder -> inlineScriptBuilder.source("knn_score")
+                                    .lang("knn")
+                                    .params("field", JsonData.of("q_1024_vec"))
+                                    .params("query_value", JsonData.of(embedding))
+                                    .params("space_type", JsonData.of(this.similarityFunction))));
+            // https://opensearch.org/docs/latest/search-plugins/knn/knn-score-script
+            // k-NN ensures non-negative scores by adding 1 to cosine similarity,
+            // extending OpenSearch scores to 0-2.
+            // A 0.5 boost normalizes to 0-1.
+            return this.similarityFunction.equals(COSINE_SIMILARITY_FUNCTION) ? scriptScoreQueryBuilder.boost(0.5f)
+                    : scriptScoreQueryBuilder;
+        }));
+
+
         // 3. 构建关键词/语义子查询（可选）
         // 如果你只想做“向量 + 过滤”，可以只保留 KNN；
         // 如果想加文本检索（如 content 匹配），再加一个 match 子查询。
@@ -370,14 +389,16 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
                                 .field("content")
                                 .query(FieldValue.of(query))
                         )))
-                        .filter(filterQuery)
+                        .filter(Query
+                                .of(queryBuilder -> queryBuilder.queryString(queryStringQuerybuilder -> queryStringQuerybuilder
+                                        .query(getOpenSearchQueryString(filterExpression)))))
                 )
         );
 
         // 4. 构建 hybrid 查询
         Query hybridQuery = Query.of(q -> q
                 .hybrid(h -> h
-                                .queries(knnSubQuery, matchAllSubQuery)
+                                .queries(matchAllSubQuery,knnSubQuery)
                         // 可选：调整 rank_constant（默认60）
                         // .rankConstant(60)
                 )
@@ -385,9 +406,12 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
 
         // 5. 构建完整请求
         return new org.opensearch.client.opensearch.core.SearchRequest.Builder()
+                .pipeline("rag_store_mcp_search_pipeline")
                 .index(this.index)
                 .query(hybridQuery)
                 .size(topK)
+                .minScore(similarityThreshold)
+                .explain(true)
                 .build();
     }
 
@@ -459,14 +483,14 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
             List<Hit<OpenSearchExpandDocument>> hits = this.openSearchClient.search(searchRequest, OpenSearchExpandDocument.class)
                     .hits()
                     .hits();
-
+            List<Hit<OpenSearchExpandDocument>> hitsCopy = new ArrayList<>(hits);
             long now = System.currentTimeMillis();
             double lambda = 0.5; // 衰减系数
             double scaleMs = 7 * 24 * 3600 * 1000.0; // 7天
 
-            hits.sort((a, b) -> {
-                long createdAtA = a.source().getCreateTime().getLong(ChronoField.MILLI_OF_SECOND);
-                long createdAtB = b.source().getCreateTime().getLong(ChronoField.MILLI_OF_SECOND);
+            hitsCopy.sort((a, b) -> {
+                long createdAtA = DateUtil.parse(a.source().getCreateTime(), "yyyy-MM-dd HH:mm:ss.SSS").getTime();
+                long createdAtB = DateUtil.parse(b.source().getCreateTime(), "yyyy-MM-dd HH:mm:ss.SSS").getTime();
 
 
                 double timeWeightA = Math.exp(-lambda * (now - createdAtA) / scaleMs);
@@ -478,7 +502,7 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
                 return Double.compare(finalScoreB, finalScoreA); // 降序
             });
 
-            return hits.stream().map(this::toDocumentV2).collect(Collectors.toList());
+            return hitsCopy.stream().map(this::toDocumentV2).collect(Collectors.toList());
 
         } catch (IOException e) {
             throw new RuntimeException(e);

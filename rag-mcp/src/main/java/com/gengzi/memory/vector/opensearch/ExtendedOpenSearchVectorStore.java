@@ -26,10 +26,7 @@ import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.SortOrder;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
-import org.opensearch.client.opensearch.core.BulkRequest;
-import org.opensearch.client.opensearch.core.BulkResponse;
-import org.opensearch.client.opensearch.core.DeleteByQueryRequest;
-import org.opensearch.client.opensearch.core.DeleteByQueryResponse;
+import org.opensearch.client.opensearch.core.*;
 import org.opensearch.client.opensearch.core.search.Hit;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
@@ -309,8 +306,177 @@ public class ExtendedOpenSearchVectorStore extends AbstractObservationVectorStor
     @Override
     public List<Document> doSimilaritySearch(SearchRequest searchRequest) {
         Assert.notNull(searchRequest, "The search request must not be null.");
-        return similaritySearch(searchRequest.getQuery(), this.embeddingModel.embed(searchRequest.getQuery()), searchRequest.getTopK(),
-                searchRequest.getSimilarityThreshold(), searchRequest.getFilterExpression());
+        return similaritySearchWithFusion(
+                searchRequest.getQuery(),
+                this.embeddingModel.embed(searchRequest.getQuery()),
+                searchRequest.getTopK(),
+                searchRequest.getSimilarityThreshold(),
+                searchRequest.getFilterExpression()
+        );
+    }
+
+    public List<Document> similaritySearchWithFusion(
+            String query,
+            float[] embedding,
+            int topK,
+            double similarityThreshold,
+            Filter.Expression filterExpression) {
+
+        // 1. 执行 KNN 向量检索（获取原始分数）
+        List<Hit<OpenSearchExpandDocument>> knnHits = executeKnnSearch(embedding, topK * 2, similarityThreshold, filterExpression);
+
+        // 2. 执行文本检索（match content）
+        List<Hit<OpenSearchExpandDocument>> textHits = executeTextSearch(query, topK * 2, filterExpression);
+
+        // 3. 融合：Map<id, FusedScore>
+        Map<String, FusedScore> fusedScores = new HashMap<>();
+
+        // KNN 分数处理：_score = 1 + cosine → 真实相似度 = score - 1
+        for (Hit<OpenSearchExpandDocument> hit : knnHits) {
+            if (hit.score() != null && hit.score() >= similarityThreshold) {
+                float cosineSim = hit.score().floatValue() - 1.0f; // 转回 [0,1]
+                fusedScores.merge(hit.id(), new FusedScore(cosineSim * 0.7f, 0f), (a, b) -> {
+                    a.vectorScore += cosineSim * 0.7f;
+                    return a;
+                });
+            }
+        }
+
+        // 文本 BM25 分数归一化（简单线性缩放到 [0,1]）
+        OptionalDouble maxBm25 = textHits.stream().mapToDouble(h -> h.score() == null ? 0 : h.score()).max();
+        double maxScore = maxBm25.orElse(1.0);
+        if (maxScore <= 0) maxScore = 1.0;
+
+        for (Hit<OpenSearchExpandDocument> hit : textHits) {
+            if (hit.score() != null) {
+                float normalizedTextScore = (float) (hit.score() / maxScore); // 归一化到 [0,1]
+                fusedScores.merge(hit.id(), new FusedScore(0f, normalizedTextScore * 0.3f), (a, b) -> {
+                    a.textScore += normalizedTextScore * 0.3f;
+                    return a;
+                });
+            }
+        }
+
+        // 4. 获取完整文档（避免重复查）
+        Set<String> allIds = fusedScores.keySet();
+        List<Hit<OpenSearchExpandDocument>> allDocs = fetchDocumentsByIds(new ArrayList<>(allIds));
+
+        // 5. 构建最终结果：应用时间衰减 + 总分
+        long now = System.currentTimeMillis();
+        double lambda = 0.5;
+        double scaleMs = 7 * 24 * 3600 * 1000.0; // 7天
+
+        return allDocs.stream()
+                .filter(hit -> fusedScores.containsKey(hit.id()))
+                .map(hit -> {
+                    FusedScore fs = fusedScores.get(hit.id());
+                    double totalScore = fs.vectorScore + fs.textScore;
+
+                    // 时间衰减
+                    long createdAt = DateUtil.parse(hit.source().getCreateTime(), "yyyy-MM-dd HH:mm:ss.SSS").getTime();
+                    double timeWeight = Math.exp(-lambda * (now - createdAt) / scaleMs);
+                    double finalScore = totalScore * timeWeight;
+
+                    return new ScoredDocument(hit, finalScore);
+                })
+                .sorted((a, b) -> Double.compare(b.finalScore, a.finalScore)) // 降序
+                .limit(topK)
+                .map(sd -> toDocumentV2WithScore(sd.hit, sd.finalScore))
+                .collect(Collectors.toList());
+    }
+
+    private Document toDocumentV2WithScore(Hit<OpenSearchExpandDocument> hit, double finalScore) {
+        OpenSearchExpandDocument src = hit.source();
+        Document doc = new Document(src.getId(), src.getContent(), src.getMetadata());
+        return doc.mutate()
+                .score(finalScore)
+                .metadata(DocumentMetadata.DISTANCE.value(), 1 - finalScore) // 注意：这里 distance 是示意，实际应为 1-cosine
+                .build();
+    }
+
+    private static class FusedScore {
+        float vectorScore;
+        float textScore;
+
+        FusedScore(float vector, float text) {
+            this.vectorScore = vector;
+            this.textScore = text;
+        }
+    }
+
+    private static class ScoredDocument {
+        Hit<OpenSearchExpandDocument> hit;
+        double finalScore;
+
+        ScoredDocument(Hit<OpenSearchExpandDocument> hit, double finalScore) {
+            this.hit = hit;
+            this.finalScore = finalScore;
+        }
+    }
+
+
+    private List<Hit<OpenSearchExpandDocument>> executeKnnSearch(
+            float[] embedding, int k, double minScore, Filter.Expression filterExpr) {
+        try {
+            var request = new org.opensearch.client.opensearch.core.SearchRequest.Builder()
+                    .index(this.index)
+                    .query(q -> q.knn(knn -> knn
+                            .field("q_1024_vec")
+                            .vector(embedding)
+                            .k(k)
+                            .filter(buildFilterQuery(filterExpr))))
+                    .minScore(minScore)
+                    .size(k)
+                    .build();
+
+            return this.openSearchClient.search(request, OpenSearchExpandDocument.class).hits().hits();
+        } catch (IOException e) {
+            throw new RuntimeException("KNN search failed", e);
+        }
+    }
+
+    private List<Hit<OpenSearchExpandDocument>> executeTextSearch(
+            String query, int k, Filter.Expression filterExpr) {
+        try {
+            var request = new org.opensearch.client.opensearch.core.SearchRequest.Builder()
+                    .index(this.index)
+                    .query(q -> q.bool(b -> b
+                            .must(m -> m.match(mt -> mt.field("content").query(FieldValue.of(query))))
+                            .filter(buildFilterQuery(filterExpr))))
+                    .size(k)
+                    .build();
+
+            return this.openSearchClient.search(request, OpenSearchExpandDocument.class).hits().hits();
+        } catch (IOException e) {
+            throw new RuntimeException("Text search failed", e);
+        }
+    }
+
+    private List<Hit<OpenSearchExpandDocument>> fetchDocumentsByIds(List<String> ids) {
+        if (ids.isEmpty()) return Collections.emptyList();
+        try {
+            var request = new org.opensearch.client.opensearch.core.MgetRequest.Builder()
+                    .index(this.index)
+                    .ids(ids)
+                    .build();
+
+            MgetResponse<OpenSearchExpandDocument> response =
+                    this.openSearchClient.mget(request, OpenSearchExpandDocument.class);
+
+            return response.docs().stream()
+                    .filter(item -> item.result() != null) // 文档存在
+                    .map(item -> {
+                        var result = item.result();
+                        return new Hit.Builder<OpenSearchExpandDocument>()
+                                .id(result.id())
+                                .source(result.source())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (IOException e) {
+            throw new RuntimeException("Fetch by IDs failed", e);
+        }
     }
 
     public List<Document> similaritySearch(String query, float[] embedding, int topK, double similarityThreshold,

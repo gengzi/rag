@@ -1,0 +1,76 @@
+server:
+  port: 8890
+
+
+spring:
+  profiles:
+    active: dev
+  ai:
+    chat:
+      client:
+        enabled: false
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+    openai:
+      api-key: test
+      embedding:
+        base-url: https://api.siliconflow.cn
+        api-key: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+        options:
+          model: Qwen/Qwen3-Embedding-0.6B
+          dimensions: 1024
+    model:
+      embedding: openai
+
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true # 打印SQL语句（开发环境用）
+    properties:
+      hibernate:
+        format_sql: true  # 格式化SQL
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # 指定MySQL方言
+
+
+## es相关配置
+#esVectorstore:
+#  index-name: rag_store_memory
+#  dimensions: 1024
+#  similarity: cosine
+#  embedding-field-name: q_1024_vec
+
+
+
+
+
+
+## 自定义对话模型参数配置
+chatmodel:
+  apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+  baseUrl: https://api.siliconflow.cn
+  model: Qwen/Qwen2.5-32B-Instruct
+  ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
+  temperature: 0.3
+
+scenes:
+  items:
+    - name: queryExpander
+      modelName: Qwen/Qwen2.5-32B-Instruct
+      systemPrompt: prompts/query_expand.md
+    - name: extractor
+      modelName: Qwen/Qwen2.5-32B-Instruct
+      systemPrompt: prompts/extractor.md
+
+
+
+
+trace: true
+
+
+

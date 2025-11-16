@@ -1,0 +1,91 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+ext {
+    set('springAiAlibabaVersion', "1.0.0.4")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:1.1.0"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
+    }
+    dependencies {
+
+    }
+}
+
+dependencies {
+    implementation project(":rag-common")
+    implementation project(":rag-dao")
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    // model
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Boot AOP Starter
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30' // 注解处理器，用于生成代码
+
+    implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // https://mvnrepository.com/artifact/org.apache.poi/poi
+    implementation("org.apache.poi:poi:5.4.1")
+    // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
+//
+//    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-agent-framework:1.1.0.0-SNAPSHOT'
+
+    // 引入jdbc
+    implementation 'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // 数据库相关
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    compileOnly 'org.checkerframework:checker-qual:3.49.1'
+
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    // 工具包
+    implementation 'cn.hutool:hutool-all:5.8.16'
+
+    // es
+//    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
+//    implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
+//    implementation 'co.elastic.clients:elasticsearch-java:9.1.4'
+
+    // opensearch
+//    implementation 'org.springframework.ai:spring-ai-starter-vector-store-opensearch'
+    implementation 'org.springframework.ai:spring-ai-opensearch-store'
+//    implementation 'org.opensearch.client:opensearch-java:3.0.0'
+    implementation 'org.opensearch.client:opensearch-rest-client:2.19.4'
+//    implementation 'org.opensearch.client:opensearch-java:3.3.2'
+//    implementation 'org.opensearch.client:opensearch-java:3.0.0'
+//    implementation 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
+
+//    implementation 'org.opensearch.client:opensearch-rest-client:3.2.0'
+//    implementation 'org.opensearch.client:opensearch-java:2.6.0'
+
+
+}

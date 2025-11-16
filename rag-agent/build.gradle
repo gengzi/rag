@@ -57,6 +57,10 @@ dependencies {
     implementation 'cn.hutool:hutool-all:5.8.16'
 //    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-dashscope'
 //    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-tool-calling-baidutranslate'
+
+
+     // 接入mcp
+    implementation "org.springframework.ai:spring-ai-starter-mcp-client"
 }
 
 test {

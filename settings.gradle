@@ -5,4 +5,5 @@ include 'rag-manager'
 include 'rag-common'
 include 'rag-dao'
 include 'rag-agent'
+include 'rag-mcp'
 

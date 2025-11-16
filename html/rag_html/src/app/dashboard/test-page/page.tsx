@@ -88,7 +88,7 @@ export default function TestPage() {
   const fetchChatHistory = async () => {
     try {
       setLoadingChat(true);
-      const response = await fetch('http://127.0.0.1:8889/aippt/chat/rag/msg/list?conversationId=57', {
+      const response = await fetch('http://127.0.0.1:8889/aippt/chat/rag/msg/list?conversationId=58', {
         method: 'GET',
         headers: {
           'accept': '*/*'
@@ -282,7 +282,7 @@ export default function TestPage() {
       // 准备请求参数
       const requestData = {
         question: input.trim(),
-        conversationId: "57", // 固定为55
+        conversationId: "58", // 固定为55
         threadId: threadId, // 使用存储的线程ID，如果为空则提交空字符串
         agentId: showPptTag ? "1" : "" // 有PPT标签时设置为1，否则为空
       };

@@ -16,6 +16,8 @@
 
 package com.gengzi;
 
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
@@ -33,9 +35,8 @@ public class RagMcpApplication {
 
 	@Bean
 	public ToolCallbackProvider memoryTools(MemoryMcpTools memoryMcpTools) {
-		return MethodToolCallbackProvider.builder()
-				.toolObjects(memoryMcpTools)
-				.build();
+		ToolCallback[] from = ToolCallbacks.from(memoryMcpTools);
+		return ToolCallbackProvider.from(from);
 	}
 
 }

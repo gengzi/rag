@@ -18,6 +18,22 @@ spring:
             initialize-schema: always
     openai:
       api-key: test
+    mcp:
+      client:
+        enabled: true
+        toolcallback:
+          enabled: true
+        name: spring-ai-mcp-client
+        sse:
+          connections:
+            server1:
+              url: http://localhost:8890
+              sse-endpoint: /api/sse
+        type: sync
+
+
+
+
   datasource:
     url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
@@ -36,7 +52,7 @@ spring:
 chatmodel:
   apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
   baseUrl: https://api.siliconflow.cn
-  model: Qwen/Qwen2.5-32B-Instruct
+  model: Qwen/QwQ-32B
   ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
   temperature: 0.3
 

@@ -22,6 +22,7 @@ import com.gengzi.tool.ppt.config.AiPPTConfig;
 import com.gengzi.tool.ppt.generate.AiPPTContentGenerationService;
 import com.gengzi.tool.ppt.generate.PptGenerationService;
 import com.gengzi.tool.ppt.parser.PptMasterParser;
+import io.modelcontextprotocol.client.McpSyncClient;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.codec.ServerSentEvent;
@@ -68,6 +70,12 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private ConversationRepository conversationRepository;
+
+    @Autowired
+    private List<McpSyncClient> mcpSyncClients;
+
+    @Autowired
+    private SyncMcpToolCallbackProvider toolCallbackProvider;
 
     public ChatServiceImpl(@Qualifier("streamGraph") StateGraph stateGraph) throws GraphStateException {
         memorySaver = new MemorySaver();
@@ -221,7 +229,8 @@ public class ChatServiceImpl implements ChatService {
         String chatId = IdUtil.simpleUUID();
         Flux<ChatClientResponse> chatClientResponseFlux = chatClient.prompt()
                 .user(req.getQuestion())
-                .system("你是一个多功能助手，帮助用户解答问题")
+                .system("你是一个多功能助手，帮助用户解答问题.在解答用户问题前，必须调用工具主动查询用户的历史偏好和习惯，提供个性化的图解，行为记录：记录用户下单行为，包括产品选择、时间模式、偏好变化等")
+                .toolCallbacks(toolCallbackProvider.getToolCallbacks())
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .stream()
                 .chatClientResponse();

@@ -16,10 +16,14 @@
 
 package com.gengzi;
 
+import com.gengzi.service.MemoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springaicommunity.mcp.annotation.McpTool;
+import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,8 +33,8 @@ import org.springframework.stereotype.Service;
 public class MemoryMcpTools {
     private static final Logger logger = LoggerFactory.getLogger(MemoryMcpTools.class);
 
-//    @Autowired
-//    private MemoryService memoryService;
+    @Autowired
+    private MemoryService memoryService;
 
     /**
      * 存储用户记忆
@@ -39,13 +43,7 @@ public class MemoryMcpTools {
     public String storeMemory(
             @ToolParam(description = "用户唯一标识符，用于关联用户的所有记忆信息") String userId,
             @ToolParam(description = "用户偏好和习惯的详细描述，包括：个人习惯（口头禅/忌讳内容）、偏好（大白话、严谨客观、）、服务偏好（配送、包装、服务态度）、消费习惯（价格敏感度、促销响应、下单时间）、情绪反馈（满意度、投诉内容、建议）等") String content) {
-//        return memoryService.storeMemory(userId, content);
-
-
-
-
-
-        return null;
+        return memoryService.storeMemory(userId, content);
     }
 
     /**
@@ -54,7 +52,6 @@ public class MemoryMcpTools {
     @Tool(name = "memory-search", description = "检索用户的历史偏好、习惯和反馈信息，支持个性化推荐、智能咨询、订单处理等场景，可查询产品偏好、口味偏好、服务偏好、消费习惯、情绪反馈等多维度信息")
     public String searchMemory(@ToolParam(description = "用户唯一标识符，用于检索该用户的所有记忆信息") String userId,
                                @ToolParam(description = "检索查询语句，可以是具体的偏好类型（如'甜度偏好'、'产品偏好'）、产品名称（如'奶茶'、'咖啡'）、行为模式（如'下单习惯'、'消费习惯'）或情感关键词（如'喜欢'、'不喜欢'）") String query) {
-//        return memoryService.searchMemory(userId, query);
-        return null;
+        return memoryService.searchMemory(userId, query);
     }
 }

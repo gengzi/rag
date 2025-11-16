@@ -13,6 +13,16 @@ spring:
         repository:
           jdbc:
             initialize-schema: always
+    mcp:
+      server:
+        enabled: true
+        name: mcp-server
+        request-timeout: 50s
+        type: sync
+        sse-endpoint: /api/sse
+        sse-message-endpoint: /api/mcp/message
+
+
     openai:
       api-key: test
       embedding:
@@ -21,6 +31,7 @@ spring:
         options:
           model: Qwen/Qwen3-Embedding-0.6B
           dimensions: 1024
+
     model:
       embedding: openai
 

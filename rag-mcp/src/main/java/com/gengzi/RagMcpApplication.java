@@ -39,4 +39,5 @@ public class RagMcpApplication {
 		return ToolCallbackProvider.from(from);
 	}
 
+
 }

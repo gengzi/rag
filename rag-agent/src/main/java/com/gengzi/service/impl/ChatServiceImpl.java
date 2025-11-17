@@ -71,11 +71,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private ConversationRepository conversationRepository;
 
-    @Autowired
-    private List<McpSyncClient> mcpSyncClients;
 
-    @Autowired
-    private SyncMcpToolCallbackProvider toolCallbackProvider;
+//    @Autowired(required = false)
+//    private SyncMcpToolCallbackProvider toolCallbackProvider;
 
     public ChatServiceImpl(@Qualifier("streamGraph") StateGraph stateGraph) throws GraphStateException {
         memorySaver = new MemorySaver();
@@ -230,7 +228,7 @@ public class ChatServiceImpl implements ChatService {
         Flux<ChatClientResponse> chatClientResponseFlux = chatClient.prompt()
                 .user(req.getQuestion())
                 .system("你是一个多功能助手，帮助用户解答问题.在解答用户问题前，必须调用工具主动查询用户的历史偏好和习惯，提供个性化的图解，行为记录：记录用户下单行为，包括产品选择、时间模式、偏好变化等")
-                .toolCallbacks(toolCallbackProvider.getToolCallbacks())
+//                .toolCallbacks(toolCallbackProvider.getToolCallbacks())
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .stream()
                 .chatClientResponse();

@@ -87,3 +87,107 @@ event:message
 data:{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"\"姓名：李四\\n喜欢吃花生和黄瓜\""}],"isError":false}}
 
 ```
+
+
+
+
+
+
+
+
+### 源码
+* 解析tool 转换为大模型可以识别的 function call json schema
+```sql
+通过解析类，获取所有带 @Tool 的方法 和 参数，转换成 ToolCallback 对象，当大模型返回工具调用的 tool message 时，解析反射调用对应的工具方法
+org.springframework.ai.tool.method.MethodToolCallbackProvider.getToolCallbacks                                                          
+public ToolCallback[] getToolCallbacks() {
+		var toolCallbacks = this.toolObjects.stream()
+			.map(toolObject -> Stream
+				.of(ReflectionUtils.getDeclaredMethods(
+						AopUtils.isAopProxy(toolObject) ? AopUtils.getTargetClass(toolObject) : toolObject.getClass()))
+				.filter(this::isToolAnnotatedMethod)
+				.filter(toolMethod -> !isFunctionalType(toolMethod))
+				.filter(ReflectionUtils.USER_DECLARED_METHODS::matches)
+				.map(toolMethod -> MethodToolCallback.builder()
+					.toolDefinition(ToolDefinitions.from(toolMethod))
+					.toolMetadata(ToolMetadata.from(toolMethod))
+					.toolMethod(toolMethod)
+					.toolObject(toolObject)
+					.toolCallResultConverter(ToolUtils.getToolCallResultConverter(toolMethod))
+					.build())
+				.toArray(ToolCallback[]::new))
+			.flatMap(Stream::of)
+			.toArray(ToolCallback[]::new);
+
+		validateToolCallbacks(toolCallbacks);
+
+		return toolCallbacks;
+	}
+```
+* mcp tool 解析 ，使用配置好的服务端信息请求，获取工具列表  listTools 方法
+  org.springframework.ai.mcp.SyncMcpToolCallbackProvider.getToolCallbacks
+```sql
+public ToolCallback[] getToolCallbacks() {
+
+		if (this.invalidateCache) {
+			this.lock.lock();
+			try {
+				if (this.invalidateCache) {
+					this.cachedToolCallbacks = this.mcpClients.stream()
+						.flatMap(mcpClient -> mcpClient.listTools()
+							.tools()
+							.stream()
+							.filter(tool -> this.toolFilter.test(connectionInfo(mcpClient), tool))
+							.<ToolCallback>map(tool -> SyncMcpToolCallback.builder()
+								.mcpClient(mcpClient)
+								.tool(tool)
+								.prefixedToolName(
+										this.toolNamePrefixGenerator.prefixedToolName(connectionInfo(mcpClient), tool))
+								.toolContextToMcpMetaConverter(this.toolContextToMcpMetaConverter)
+								.build()))
+						.toList();
+
+					this.validateToolCallbacks(this.cachedToolCallbacks);
+					this.invalidateCache = false;
+				}
+			}
+			finally {
+				this.lock.unlock();
+			}
+		}
+
+		return this.cachedToolCallbacks.toArray(new ToolCallback[0]);
+	}
+```
+
+
+
+
+# 现阶段有个小问题，如果服务端mcp 挂了，客户端发起的所有经过大模型交互的流程都会失败，在启动阶段也是
+启动阶段先不去初始化客户端和toolcallback 在整个spring 容器加载时，再动态的初始化客户端
+# 是否初始化客户端
+initialized: false
+# MCP 工具回调与 Spring AI 工具执行框架的集成
+toolcallback:
+enabled: false
+
+
+
+* 在 Model Context Protocol（MCP） 的设计中，确实 “工具（tools）”是最容易在与大模型（LLM）交互过程中被主动触发的功能，而像 提示（prompts）、
+资源（resources）、自动补全（completions） 等功能，更多是 被动提供或由客户端按需调用
+* 比如prompts
+```sql
+  当用户点击一个“快捷操作”按钮，比如 “写周报”、“解释这段代码”。你就去调用 prompts/list 获取服务器支持的所有提示模板
+```
+* 比如resources 
+```sql
+当用户打开了某个文件，你就去调用 resources/list 获取服务器支持的所有资源，并且映射为 file://... URI
+当大模型要读了，就调用工具 把 file://...  作为参数获取资源                                 
+```
+* 比如 completions 补全
+```sql
+当用户在填写工具参数、命令或表单时，需要智能补全。你就监听输入事件，当用户暂停输入（debounce）时，发起 completion/complete 请求，传入当前光标位置和上下文
+服务器返回建议列表，你展示下拉菜单                                                                                    
+```
+
+json-rpc2是一种 轻量级的远程过程调用协议，它使用 JSON 格式编码请求和响应，本质上就是定义了一套固定格式的 JSON 结构，用于客户端和服务端之间“说同一种语言”

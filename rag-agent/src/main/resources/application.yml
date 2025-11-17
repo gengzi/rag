@@ -20,16 +20,23 @@ spring:
       api-key: test
     mcp:
       client:
+        #  启用/禁用MCP客户端
         enabled: true
+        # MCP 工具回调与 Spring AI 工具执行框架的集成
         toolcallback:
+          enabled: false
+        name: rag-agent-client-mcp
+        #  Java 注解来实现 MCP 客户端处理程序
+        annotation-scanner:
           enabled: true
-        name: spring-ai-mcp-client
         sse:
           connections:
             server1:
               url: http://localhost:8890
               sse-endpoint: /api/sse
         type: sync
+        # 是否初始化客户端
+        initialized: false
 
 
 

@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+
+ext {
+    set('springAiAlibabaVersion', "1.1.0.0-M5")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:1.1.0"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
+    }
+    dependencies {
+
+    }
+}
+
+dependencies {
+    implementation project(":rag-common")
+    implementation project(":rag-dao")
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    // model
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Boot AOP Starter
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30' // 注解处理器，用于生成代码
+
+    implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    // 工具包
+    implementation 'cn.hutool:hutool-all:5.8.16'
+
+
+    implementation "org.springframework.ai:spring-ai-starter-mcp-client-webflux"
+
+}

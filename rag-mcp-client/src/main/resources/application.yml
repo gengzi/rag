@@ -1,0 +1,55 @@
+server:
+  port: 8891
+
+
+spring:
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true # 打印SQL语句（开发环境用）
+    properties:
+      hibernate:
+        format_sql: true  # 格式化SQL
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # 指定MySQL方言
+  ai:
+    chat:
+      client:
+        enabled: false
+    mcp:
+      client:
+        #  启用/禁用MCP客户端
+        enabled: true
+        # MCP 工具回调与 Spring AI 工具执行框架的集成
+        toolcallback:
+          enabled: false
+        name: rag-agent-client-mcp
+        #  Java 注解来实现 MCP 客户端处理程序
+        annotation-scanner:
+          enabled: true
+        sse:
+          connections:
+            server1:
+              url: http://localhost:8890
+              sse-endpoint: /api/sse
+        type: sync
+        # 是否初始化客户端
+        initialized: false
+    openai:
+      api-key: test
+
+## 自定义对话模型参数配置
+chatmodel:
+  apiKey: sk-ltrjtwcekfkowwmdqghjzgfkjhylcocxibuuviorbnfzvqqj
+  baseUrl: https://api.siliconflow.cn
+  model: Qwen/Qwen2.5-32B-Instruct
+  ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
+  temperature: 0.3
+
+
+
+

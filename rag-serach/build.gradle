@@ -1,0 +1,69 @@
+plugins {
+    id 'java'
+    id 'java-library'
+}
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs = ['src/main/resources'] // 确保资源目录被正确打包
+        }
+    }
+}
+
+
+dependencies {
+    // 1. 引入 common（实体类可能依赖 DTO 或工具）
+    implementation project(':rag-common')
+    implementation project(":rag-dao")
+
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    implementation "org.springframework.ai:spring-ai-rag"
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+    implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+
+    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // 引入jdbc
+    implementation 'org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc'
+    api 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
+    api 'co.elastic.clients:elasticsearch-java:9.1.4'
+
+    // 工具包
+    implementation 'cn.hutool:hutool-all:5.8.16'
+    // s3相关
+    implementation 'software.amazon.awssdk:netty-nio-client:2.32.16'
+    implementation("software.amazon.awssdk:s3-transfer-manager:2.32.16")
+    implementation 'software.amazon.awssdk:s3:2.32.16'
+    implementation 'software.amazon.awssdk:core:2.32.16'
+
+// https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    implementation("org.apache.commons:commons-lang3:3.13.0")
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30' // 注解处理器，用于生成代码
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    compileOnly 'org.checkerframework:checker-qual:3.49.1'
+    // 数据库相关
+    runtimeOnly 'com.mysql:mysql-connector-j'
+}
+
+test {
+    useJUnitPlatform()
+}

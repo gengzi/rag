@@ -37,7 +37,7 @@ allprojects {
 }
 
 ext {
-    set('springAiVersion', "1.0.3")
+    set('springAiVersion', "1.1.0")
 }
 dependencyManagement {
     imports {

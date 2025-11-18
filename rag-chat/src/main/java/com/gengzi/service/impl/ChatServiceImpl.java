@@ -7,9 +7,7 @@ import com.gengzi.rag.search.service.ChatRagService;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.BusinessException;
 import com.gengzi.response.ChatMessageResponse;
-import com.gengzi.security.UserPrincipal;
 import com.gengzi.service.ChatService;
-import com.gengzi.utils.UserDetailsUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +62,7 @@ public class ChatServiceImpl implements ChatService {
                     logger.info("当前流序号：{}", tuple.getT1());
                     sink.tryEmitNext(ServerSentEvent.builder(tuple.getT2()).build());
                 })
+                .doOnComplete(()-> sink.tryEmitComplete())
                 .doOnError(e -> sink.tryEmitError(e))
                 .subscribe();
 

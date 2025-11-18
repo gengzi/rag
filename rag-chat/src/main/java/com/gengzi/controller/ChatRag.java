@@ -1,7 +1,10 @@
 package com.gengzi.controller;
 
 
+import com.gengzi.request.ChatReq;
 import com.gengzi.request.TtsReq;
+import com.gengzi.response.ChatMessageResponse;
+import com.gengzi.service.ChatService;
 import com.gengzi.service.TtsService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -10,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +26,33 @@ public class ChatRag {
 
     @Autowired
     private TtsService ttsService;
+
+    @Autowired
+    private ChatService chatService;
+
+    /**
+     * 聊天对话接口
+     * 前端交互，返回对话内容信息
+     */
+    @PostMapping(value = "/stream/msg", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<ChatMessageResponse>> chatRag(@RequestBody ChatReq req) {
+        return chatService.chatRag(req);
+    }
+
+
+
+    /**
+     * 聊天记录分页查询接口
+     * 每次分页50条，从后往前查
+     */
+
+
+    /**
+     * 所有agent能力列表
+     * 用于查询现在支持的agent能力
+     */
+
+
 
     /**
      * 接收前端文本请求，返回流式音频给前端

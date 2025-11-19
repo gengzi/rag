@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
@@ -22,7 +23,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Configuration
-@EnableReactiveMethodSecurity // 支持响应式方法级安全（如 @PreAuthorize）
+@EnableWebFluxSecurity
+@EnableReactiveMethodSecurity(useAuthorizationManager=true) // 支持响应式方法级安全（如 @PreAuthorize）
 public class SecurityConfig {
 
 
@@ -32,8 +34,8 @@ public class SecurityConfig {
     @Autowired
     private CustomReactiveUserDetailsService customReactiveUserDetailsService;
 
-    @Autowired
-    private SecurityContextCheckFilter securityContextCheckFilter;
+//    @Autowired
+//    private SecurityContextCheckFilter securityContextCheckFilter;
 
     public SecurityConfig(JwtReactiveAuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
@@ -51,7 +53,7 @@ public class SecurityConfig {
                         .anyExchange().authenticated() // 其他接口需认证
                 )
                 .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION) // 添加 JWT 过滤器
-                .addFilterAfter(securityContextCheckFilter, SecurityWebFiltersOrder.AUTHENTICATION) // 认证后检查
+//                .addFilterAfter(securityContextCheckFilter, SecurityWebFiltersOrder.AUTHENTICATION) // 认证后检查
                 // 禁用默认的表单登录和 HTTP Basic，避免冲突
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
@@ -98,7 +100,7 @@ public class SecurityConfig {
                                 null, // 密码无需存储在认证信息中
                                 authorities // 从 Token 解析的角色权限
                         );
-                        return Mono.just(auth);
+                        return Mono.just(auth).doOnNext(a -> System.out.println(">>> Authentication set: " + a));
                     });
         };
     }

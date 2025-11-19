@@ -29,6 +29,7 @@ public class JwtTokenProvider {
 
 
     public String generateToken(UserDetails userDetails) {
+        UserPrincipal userPrincipal = (UserPrincipal) userDetails;
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
         Map<String, Object> claims = new HashMap<>();
@@ -39,7 +40,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(userDetails.getUsername())
+                .setSubject(userPrincipal.getId())
                 .setIssuedAt(new Date())
                 .setExpiration(expiryDate)
                 .signWith(Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)))

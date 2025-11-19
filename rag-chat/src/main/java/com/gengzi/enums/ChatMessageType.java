@@ -1,6 +1,6 @@
 package com.gengzi.enums;
 
-public enum MessageType {
+public enum ChatMessageType {
 
     /**
      * 普通大模型回复（无工具调用，可能含 RAG 引用）
@@ -42,7 +42,7 @@ public enum MessageType {
      */
     private final String description;
 
-    MessageType(String typeCode, String description) {
+    ChatMessageType(String typeCode, String description) {
         this.typeCode = typeCode;
         this.description = description;
     }
@@ -62,8 +62,8 @@ public enum MessageType {
      * 根据 typeCode（如 "agent_response"）反查枚举
      * 用于从 JSON 或数据库还原类型
      */
-    public static MessageType fromTypeCode(String code) {
-        for (MessageType type : MessageType.values()) {
+    public static ChatMessageType fromTypeCode(String code) {
+        for (ChatMessageType type : ChatMessageType.values()) {
             if (type.typeCode.equalsIgnoreCase(code)) {
                 return type;
             }

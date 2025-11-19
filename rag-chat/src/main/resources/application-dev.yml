@@ -1,4 +1,10 @@
 spring:
+  ai:
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: never
   datasource:
     url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
@@ -22,3 +28,5 @@ user:
   jwt:
     jwtSecret: pwKtHLwn5wurpahhR4tZjNdEfXE3pG0rQweG/4tbV0k1AV93ji9CLxfuGWR8rRtgqvJrE3/M3RtAHQngK2QYIA==
     jwtExpirationMs: 86400000
+
+debug: true

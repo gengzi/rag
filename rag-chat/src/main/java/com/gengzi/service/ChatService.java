@@ -1,9 +1,14 @@
 package com.gengzi.service;
 
+import com.gengzi.request.ChatMsgRecordReq;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.ChatMessageResponse;
+import com.gengzi.response.ConversationDetailsResponse;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface ChatService {
 
@@ -15,8 +20,14 @@ public interface ChatService {
      * @param req
      * @return
      */
-    Flux<ServerSentEvent<ChatMessageResponse>> chatRag(ChatReq req);
+    Flux<ServerSentEvent<ChatMessageResponse>> chat(ChatReq req);
 
-    Object chatRagMsgList(String conversationId);
+    /**
+     * 获取聊天记录，分页获取
+     * @param conversationId
+     * @param recordReq
+     * @return
+     */
+    Mono<ConversationDetailsResponse> chatMsgList(String conversationId, ChatMsgRecordReq recordReq);
 
 }

@@ -214,7 +214,7 @@ public class ChatStreamAspect {
             LlmTextRes llmTextRes = new LlmTextRes();
             llmTextRes.setAnswer(question);
             llmTextRes.setReference(new RagReference());
-            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(System.currentTimeMillis(), llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode());
+            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode());
             chatMessage.setContent(List.of(ChatMessageResponse));
             chatMessage.setRole(MessageType.USER.name());
             chatMessage.setConversationId(conversationId);

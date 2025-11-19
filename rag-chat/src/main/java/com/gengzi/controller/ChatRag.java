@@ -16,16 +16,14 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-@RestController("/chat/flux")
+@RestController()
+@RequestMapping("/chat")
 @Tag(name = "rag对话聊天涉及的相关接口", description = "rag对话聊天涉及的相关接口")
 public class ChatRag {
     private static final Logger logger = LoggerFactory.getLogger(ChatRag.class);

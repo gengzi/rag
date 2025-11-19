@@ -16,6 +16,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
@@ -37,6 +38,9 @@ public class SecurityConfig {
 //    @Autowired
 //    private SecurityContextCheckFilter securityContextCheckFilter;
 
+    @Autowired
+    private CorsConfigurationSource corsConfigurationSource;
+
     public SecurityConfig(JwtReactiveAuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
     }
@@ -45,6 +49,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable()) // WebFlux 中 CSRF 可禁用（视场景而定）
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login", "/v3/api-docs/**",

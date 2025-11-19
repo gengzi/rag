@@ -18,6 +18,7 @@ import java.time.Instant;
 @Setter
 @Entity
 @Table(name = "messages", schema = "rag_db", indexes = {
+        @Index(name = "idx_conv_created_msg", columnList = "conversation_id, created_time, id"),
         @Index(name = "idx_conv_time", columnList = "conversation_id, created_time")
 })
 public class Message {
@@ -33,10 +34,8 @@ public class Message {
      * 所属对话ID
      */
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "conversation_id", nullable = false)
-    private Conversation conversation;
+    @Column(name = "conversation_id", nullable = false)
+    private String conversation;
 
     /**
      * 角色：user / assistant / agent 等

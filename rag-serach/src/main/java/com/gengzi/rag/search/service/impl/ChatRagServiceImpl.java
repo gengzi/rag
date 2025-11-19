@@ -3,12 +3,10 @@ package com.gengzi.rag.search.service.impl;
 import com.gengzi.dao.User;
 import com.gengzi.dao.repository.UserRepository;
 import com.gengzi.enums.MessageType;
+import com.gengzi.rag.context.RagChatContext;
 import com.gengzi.rag.search.service.ChatRagService;
 import com.gengzi.request.ChatReq;
-import com.gengzi.response.ChatMessageResponse;
-import com.gengzi.response.LlmTextRes;
-import com.gengzi.response.RagReference;
-import com.gengzi.response.ResultCode;
+import com.gengzi.response.*;
 import com.gengzi.utils.IdUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientResponse;
@@ -21,10 +19,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import com.gengzi.rag.context.RagChatContext;
-import com.gengzi.response.BusinessException;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,7 +50,8 @@ public class ChatRagServiceImpl implements ChatRagService {
         // 根据userid 获取用户支持的知识库列表信息
         Optional<User> byId = userRepository.findById(userId);
         if (!byId.isPresent()) {
-            throw new BusinessException(ResultCode.USER_NOT_EXIST);
+            return Flux.error(new BusinessException(ResultCode.USER_NOT_EXIST));
+//            throw new BusinessException(ResultCode.USER_NOT_EXIST);
         }
         // 添加知识库id过滤元数据
         String knowledgeIds = byId.get().getKnowledgeIds();

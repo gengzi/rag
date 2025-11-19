@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 public class ChatMessageResponse {
 
 
-    // "user", "assistant"
-    private String role;
+//    // "user", "assistant"
+//    private String role;
 
     /**
      * 时间戳

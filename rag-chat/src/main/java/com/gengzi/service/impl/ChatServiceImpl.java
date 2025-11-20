@@ -7,13 +7,17 @@ import com.gengzi.dao.repository.ConversationRepository;
 import com.gengzi.dao.repository.MessageRepository;
 import com.gengzi.enums.Agent;
 import com.gengzi.rag.search.service.ChatRagService;
+
+import com.gengzi.request.AgentChatReq;
 import com.gengzi.request.ChatMsgRecordReq;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.BusinessException;
 import com.gengzi.response.ChatMessage;
 import com.gengzi.response.ChatMessageResponse;
+
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.service.ChatService;
+import com.gengzi.service.DeepResearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +48,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private MessageRepository messageRepository;
 
+    @Autowired
+    private DeepResearchService deepResearchService;
+
 
     private void exec(ChatReq req, String userid, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
         // 1,判断会话id是否存在,参数校验
@@ -54,6 +61,28 @@ public class ChatServiceImpl implements ChatService {
         // 2，判断agentid是否存在，并且agentid是否可用
         if (StrUtil.isNotBlank(req.getAgentId()) && Agent.isExist(req.getAgentId())) {
             // 3,存在agentid，执行agent流程
+            AgentChatReq ragChatReq = new AgentChatReq();
+            ragChatReq.setQuery(req.getQuery());
+            ragChatReq.setConversationId(req.getConversationId());
+            ragChatReq.setAgentId(req.getAgentId());
+            ragChatReq.setUserId(userid);
+            ragChatReq.setThreadId(req.getThreadId());
+            Flux<ServerSentEvent<ChatMessageResponse>> serverSentEventFlux = deepResearchService.deepResearch(ragChatReq);
+            serverSentEventFlux.index()
+                    .doOnNext(tuple -> {
+                        logger.info("当前流序号：{}", tuple.getT1());
+                        sink.tryEmitNext(tuple.getT2());
+                    })
+                    .doOnComplete(() -> sink.tryEmitComplete())
+                    .doOnError(e ->
+                            {
+                                logger.error("SSrroE 流错误", e);
+                                sink.tryEmitError(e);
+                            }
+                    )
+                    .subscribe();
+            return;
+
         }
 
         Flux<ChatMessageResponse> chatMessageResponseFlux = chatRagService.chatRag(req, userid);

@@ -203,7 +203,7 @@ public class ChatStreamAspect {
         }
     }
 
-    private void saveUserConversation(String conversationId, String chatId, String question, String sessionId) {
+    private void saveUserConversation(String conversationId, String chatId, String question, String threadId) {
         Optional<Conversation> conversationOptional = conversationRepository.findById(conversationId);
         if (conversationOptional.isPresent()) {
             // 存在就设置内容
@@ -214,7 +214,7 @@ public class ChatStreamAspect {
             LlmTextRes llmTextRes = new LlmTextRes();
             llmTextRes.setAnswer(question);
             llmTextRes.setReference(new RagReference());
-            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode());
+            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(threadId, llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode());
             chatMessage.setContent(List.of(ChatMessageResponse));
             chatMessage.setRole(MessageType.USER.name());
             chatMessage.setConversationId(conversationId);
@@ -223,14 +223,14 @@ public class ChatStreamAspect {
                 List<ChatMessage> list = JSONUtil.toList(message, ChatMessage.class);
                 list.add(chatMessage);
                 conversation.setMessage(JSONUtil.toJsonStr(list));
-                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(),conversation, chatMessage);
+                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(), conversation, chatMessage);
                 messageRepository.save(messageRecord);
                 conversationRepository.save(conversation);
             } else {
                 List<ChatMessage> chatMessages = new ArrayList<>();
                 chatMessages.add(chatMessage);
                 conversation.setMessage(JSONUtil.toJsonStr(chatMessages));
-                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(),conversation, chatMessage);
+                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(), conversation, chatMessage);
                 messageRepository.save(messageRecord);
                 conversationRepository.save(conversation);
             }
@@ -255,7 +255,7 @@ public class ChatStreamAspect {
             List<ChatMessage> list = JSONUtil.toList(message, ChatMessage.class);
             list.add(chatMessage);
             conversation.setMessage(JSONUtil.toJsonStr(list));
-            com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.ASSISTANT.name(),conversation, chatMessage);
+            com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.ASSISTANT.name(), conversation, chatMessage);
             messageRepository.save(messageRecord);
             conversationRepository.save(conversation);
         } else {

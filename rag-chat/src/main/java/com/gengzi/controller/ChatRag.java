@@ -5,6 +5,8 @@ import com.gengzi.request.ChatMsgRecordReq;
 import com.gengzi.request.ChatReq;
 import com.gengzi.request.TtsReq;
 import com.gengzi.response.ChatMessageResponse;
+
+
 import com.gengzi.response.ConversationDetailsResponse;
 import com.gengzi.service.ChatService;
 import com.gengzi.service.TtsService;
@@ -19,8 +21,6 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 @RestController()
 @RequestMapping("/chat")

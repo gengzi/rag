@@ -7,6 +7,10 @@ plugins {
 group = 'com.gengzi'
 version = '0.0.1-SNAPSHOT'
 
+ext {
+    set('springAiAlibabaVersion', "1.0.0.4")
+}
+
 
 bootJar {
     // 确保主类被正确包含
@@ -18,6 +22,7 @@ bootJar {
 dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
     }
     dependencies {
 
@@ -58,6 +63,7 @@ dependencies {
 
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
 
 }
 

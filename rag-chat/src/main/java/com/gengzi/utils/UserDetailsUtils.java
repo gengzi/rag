@@ -1,11 +1,8 @@
 package com.gengzi.utils;
 
-import com.gengzi.security.UserPrincipal;
-import com.gengzi.service.impl.ChatServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextImpl;
 import reactor.core.publisher.Mono;
 
 public class UserDetailsUtils {

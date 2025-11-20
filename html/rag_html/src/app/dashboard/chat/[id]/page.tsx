@@ -554,7 +554,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         <div className="border-t border-input p-4 bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
           <form 
             onSubmit={handleChatSubmit} 
-            className="flex items-center space-x-3"
+            className="flex items-center space-x-3 w-full"
           >
             <input
               ref={inputRef}

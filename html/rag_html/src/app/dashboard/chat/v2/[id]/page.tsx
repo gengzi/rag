@@ -733,7 +733,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         <div className="border-t border-input p-4 bg-background shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
           <form
             onSubmit={handleChatSubmit}
-            className="flex items-center space-x-3"
+            className="flex items-center space-x-3 w-full"
           >
             <div className="relative flex-1">
               <input
@@ -743,7 +743,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 value={input}
                 onChange={handleInputChange}
                 disabled={isLoading || loadingChat}
-                className={`flex-1 min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag ? 'pl-20' : 'pl-4'}`}
+                className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag ? 'pl-20' : 'pl-4'}`}
               />
               {showPptTag && (
                 <button

@@ -81,6 +81,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPptTag, setShowPptTag] = useState(false);
+  const [showDeepResearchTag, setShowDeepResearchTag] = useState(false);
   const [assistantMessageId, setAssistantMessageId] = useState('');
   const [loadingChat, setLoadingChat] = useState(true);
   const [before, setBefore] = useState(""); // 存储API返回的before参数用于分页
@@ -341,16 +342,27 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       // 先更新本地消息列表
       setMessages(prev => [...prev, userMessage]);
 
-      // 清空输入框，但保留PPT标签状态
-      setInput('');
+      // 保存当前标签状态，用于请求参数
+      const currentPptTag = showPptTag;
+      const currentDeepResearchTag = showDeepResearchTag;
+      const inputText = input.trim();
 
       // 准备请求参数
       const requestData = {
-        query: input.trim(),
+        query: inputText,
         conversationId: id,
         threadId: threadId,
-        agentId: showPptTag ? "1" : ""
+        agentId: currentPptTag ? "1" : currentDeepResearchTag ? "DeepResearch" : ""
       };
+
+      // 清空输入框，并在准备好请求参数后重置PPT标签状态
+      // 深度检索标签只有在点击移除按钮时才移除
+      setInput('');
+      setShowPptTag(false);
+      
+      // 确保深度检索标签不会被自动移除
+      // 记录当前状态用于调试
+      console.log('发送消息前深度检索标签状态:', showDeepResearchTag);
 
       console.log("发送请求:", requestData);
 
@@ -639,6 +651,12 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       setIsLoading(false);
       // 确保释放reader资源
       // 这个在循环里已经处理了
+      
+      // 再次确认深度检索标签状态
+      console.log('消息处理完成后深度检索标签状态:', showDeepResearchTag);
+      
+      // 确保深度检索标签保持其状态（只有用户点击移除按钮时才移除）
+      // 这里不应该有任何重置showDeepResearchTag的代码
     }
   };
 
@@ -739,11 +757,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder={showPptTag ? "" : "输入您的问题..."}
+                placeholder={showPptTag || showDeepResearchTag ? "" : "输入您的问题..."}
                 value={input}
                 onChange={handleInputChange}
                 disabled={isLoading || loadingChat}
-                className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag ? 'pl-20' : 'pl-4'}`}
+                className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag || showDeepResearchTag ? 'pl-24' : 'pl-4'}`}
               />
               {showPptTag && (
                 <button
@@ -754,6 +772,18 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                   aippt
                   <span className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors">×</span>
                 </button>
+              )}
+              {showDeepResearchTag && (
+                <div className="absolute left-1 top-1/2 transform -translate-y-1/2 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center hover:bg-primary/90 transition-colors">
+                  深度检索
+                  <button
+                    type="button"
+                    onClick={() => setShowDeepResearchTag(false)}
+                    className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
             </div>
             <Button
@@ -772,14 +802,24 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             {input.trim() && (
               <p className="text-xs text-muted-foreground ml-1 animate-fadeIn">按 Enter 发送消息</p>
             )}
-            <Button
-              type="button"
-              onClick={() => setShowPptTag(true)}
-              disabled={showPptTag || isLoading || loadingChat}
-              className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
-            >
-              AiPPT-工具
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                type="button"
+                onClick={() => setShowPptTag(true)}
+                disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
+                className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
+              >
+                AiPPT-工具
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setShowDeepResearchTag(true)}
+                  disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
+                  className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
+                >
+                  深度检索
+                </Button>
+            </div>
           </div>
         </div>
       </div>

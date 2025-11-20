@@ -9,9 +9,15 @@ version = '0.0.1-SNAPSHOT'
 repositories {
     mavenCentral()
 }
+
+ext {
+    set('springAiAlibabaVersion', "1.0.0.4")
+}
+
 dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
     }
 }
 
@@ -31,10 +37,12 @@ dependencies {
 
     implementation 'org.springframework:spring-context'
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-configuration-processor'
 
     implementation "org.springframework.ai:spring-ai-rag"
     implementation "org.springframework.ai:spring-ai-starter-model-openai"
     implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+
 
     implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -62,6 +70,7 @@ dependencies {
     compileOnly 'org.checkerframework:checker-qual:3.49.1'
     // 数据库相关
     runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
 }
 
 test {

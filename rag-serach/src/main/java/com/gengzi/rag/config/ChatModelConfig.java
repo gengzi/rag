@@ -46,6 +46,19 @@ public class ChatModelConfig {
     }
 
 
+    @Bean
+    public OpenAiChatModel.Builder openAiChatModelBuilder() {
+        OpenAiApi openApi = OpenAiApi.builder().apiKey(config.getApiKey())
+                .baseUrl(config.getBaseUrl()).build();
+        OpenAiChatModel.Builder builder = OpenAiChatModel.builder()
+                .openAiApi(openApi)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .model(config.getModel())
+                        .temperature(config.getTemperature())
+                        .build());
+        return builder;
+    }
+
 
 
 

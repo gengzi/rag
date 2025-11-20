@@ -48,13 +48,13 @@ public class ChatRagServiceImpl implements ChatRagService {
     public Flux<ChatMessageResponse> chatRag(ChatReq ragChatReq, String userId) {
 
         // 根据userid 获取用户支持的知识库列表信息
-        Optional<User> byId = userRepository.findById(userId);
-        if (!byId.isPresent()) {
+        User byId = userRepository.findUserByUsername(userId);
+        if (byId == null) {
             return Flux.error(new BusinessException(ResultCode.USER_NOT_EXIST));
 //            throw new BusinessException(ResultCode.USER_NOT_EXIST);
         }
         // 添加知识库id过滤元数据
-        String knowledgeIds = byId.get().getKnowledgeIds();
+        String knowledgeIds = byId.getKnowledgeIds();
         String filterKbIds = Arrays.stream(knowledgeIds.split(",")).map(v -> "'" + v.trim() + "'").collect(Collectors.joining(","));
         String filter = "kbId in [" + filterKbIds + "]";
 

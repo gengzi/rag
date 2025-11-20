@@ -39,6 +39,8 @@ public class ChatClientConfig {
                 , advisor).build();
     }
 
+
+
     @Bean
     public ChatClient deepseekChatClientNoRag(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel).defaultAdvisors(

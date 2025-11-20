@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.naming.ldap.PagedResultsControl;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,10 +16,15 @@ public class ChatMessageResponse {
 //    // "user", "assistant"
 //    private String role;
 
+//    /**
+//     * 时间戳
+//     */
+//    private Long timestamp;
+
     /**
-     * 时间戳
+     * 标识一次agent节点的执行关联线程id
      */
-    private Long timestamp;
+    private String threadId;
 
     /**
      * 存放实际的响应内容

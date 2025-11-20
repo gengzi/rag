@@ -25,7 +25,6 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     // 工具包
     implementation 'cn.hutool:hutool-all:5.8.16'
-
     implementation "org.springframework.ai:spring-ai-commons"
 
 }

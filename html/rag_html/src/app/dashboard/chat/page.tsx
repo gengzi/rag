@@ -4,8 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Plus, MessageSquare, Trash2, Search } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { getAllChats, deleteChat } from "@/lib/services/chatService";
 import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface Chat {
   id: string;
@@ -27,7 +29,7 @@ export default function ChatPage() {
   const fetchChats = async () => {
     try {
       console.log("Fetching chats...");
-      const chatData = await api.get("/chat/rag/all");
+      const chatData = await getAllChats();
       console.log("Chat data:", chatData);
       setChats(chatData || []);
     } catch (error) {
@@ -45,7 +47,7 @@ export default function ChatPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("确定要删除这个对话吗？")) return;
     try {
-      await api.delete(`/chat/rag/delete/${id}`);
+      await deleteChat({ id });
       setChats((prev) => prev.filter((chat) => chat.id !== id));
       toast({
         title: "成功",
@@ -109,28 +111,40 @@ export default function ChatPage() {
               key={chat.id}
               className="group relative bg-card rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
             >
-              <Link href={`/dashboard/chat/${chat.id}`}>
-                <div className="p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-primary/10 rounded-lg p-2">
-                      <MessageSquare className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-                        {chat.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        创建于 {new Date(chat.createDate).toLocaleDateString()}
-                      </p>
-                    </div>
+              <div className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-lg p-2">
+                    <MessageSquare className="h-6 w-6 text-primary" />
                   </div>
-                  {chat.dialogId && chat.dialogId !== "" && (
-                    <p className="text-sm text-muted-foreground mt-4 line-clamp-2">
-                      对话ID: {chat.dialogId}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                      {chat.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      创建于 {new Date(chat.createDate).toLocaleDateString()}
                     </p>
-                  )}
+                  </div>
                 </div>
-              </Link>
+                {chat.dialogId && chat.dialogId !== "" && (
+                  <p className="text-sm text-muted-foreground mt-4 line-clamp-2">
+                    对话ID: {chat.dialogId}
+                  </p>
+                )}
+                
+                {/* 版本选择按钮 */}
+                <div className="mt-4 flex space-x-2">
+                  <Link href={`/dashboard/chat/${chat.id}`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">
+                      旧版本
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/chat/v2/${chat.id}`} className="flex-1">
+                    <Button variant="default" size="sm" className="w-full">
+                      新版本
+                    </Button>
+                  </Link>
+                </div>
+              </div>
               <button
                 onClick={(e) => {
                   e.preventDefault();

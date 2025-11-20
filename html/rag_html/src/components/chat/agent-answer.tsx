@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Globe, ChevronDown, ChevronRight } from "lucide-react";
+import { Globe, ChevronDown, ChevronRight, File, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -168,7 +168,8 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                       className="w-full flex items-center justify-between text-left text-sm font-medium text-gray-700 mb-2 focus:outline-none"
                   >
                     <div className="flex items-center">
-                      <h4>参考资料：({node.reference!.length})</h4>
+                      <File className="h-3.5 w-3.5 text-primary mr-1.5" />
+                      <h4>引用的文档：({node.reference!.length})</h4>
                     </div>
                     <span className="text-gray-500">
                   {isRefExpanded ?
@@ -181,35 +182,50 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                   {/* 引用内容，根据展开状态显示/隐藏 */}
                   {isRefExpanded && (
                       <div className="space-y-3">
-                        {node.reference!.map((ref) => (
-                            <div key={ref.chunkId || `${node.id}-${ref.documentId}`} className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h5 className="text-sm font-medium text-gray-900 flex items-center">
-                                    <Globe className="h-4 w-4 mr-1.5 text-blue-500" />
-                                    {ref.documentName}
-                                  </h5>
-                                  {ref.pageRange && (
-                                      <span className="text-xs text-gray-500 ml-5.5">第 {ref.pageRange} 页</span>
-                                  )}
-                                </div>
-                                {ref.documentUrl && (
-                                    <a
-                                        href={ref.documentUrl.trim()}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-blue-500 hover:text-blue-700 ml-2 flex-shrink-0"
+                        {node.reference!.map((ref, index) => (
+                            <Card key={ref.chunkId || `${node.id}-${ref.documentId}`} className="border border-muted/30 bg-muted/50 hover:border-primary/50 hover:shadow-sm transition-all duration-300 transform hover:-translate-y-0.5">
+                              <CardHeader className="p-3 pb-0">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <File className="h-4 w-4 text-primary" />
+                                    <CardTitle className="text-sm font-medium">
+                                      {ref.documentName || `文档 ${index + 1}`}
+                                    </CardTitle>
+                                    <button
+                                      onClick={() => {
+                                        if (ref.documentId) {
+                                          const previewUrl = `/file-preview/${ref.documentId}`;
+                                          window.open(previewUrl, '_blank');
+                                        }
+                                      }}
+                                      className="text-xs font-medium text-primary/80 hover:text-primary transition-colors flex items-center gap-1"
+                                      aria-label="查看文件"
                                     >
-                                      查看
-                                    </a>
-                                )}
-                              </div>
-                              {ref.text && (
-                                  <p className="text-xs text-gray-600 mt-2 ml-5.5">
-                                    {ref.text}
-                                  </p>
-                              )}
-                            </div>
+                                      <Eye className="h-3 w-3" />
+                                      查看文件
+                                    </button>
+                                  </div>
+                                  <span className="text-xs font-medium text-primary/80">
+                                    [引用 {index + 1}]
+                                  </span>
+                                </div>
+                                <div className="text-xs mt-0.5 text-muted-foreground">
+                                  {ref.documentId ? `文档ID: ${ref.documentId}` : ''}
+                                  {ref.pageRange ? `，页码: ${ref.pageRange}` : ''}
+                                  {ref.contentType ? `，类型: ${ref.contentType}` : ''}
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-3 pt-2">
+                                <div className="text-xs text-muted-foreground max-h-[200px] overflow-y-auto bg-background/30 p-2 rounded-md">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
+                                  >
+                                    {ref.text || ''}
+                                  </ReactMarkdown>
+                                </div>
+                              </CardContent>
+                            </Card>
                         ))}
                       </div>
                   )}

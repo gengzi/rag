@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard-layout";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { createChat, getKnowledgeBase } from "@/lib/services/chatService";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus } from "lucide-react";
 
@@ -30,7 +31,7 @@ export default function NewChatPage() {
 
   const fetchKnowledgeBases = async () => {
     try {
-      const data = await api.get("/api/knowledge-base");
+      const data = await getKnowledgeBase();
       setKnowledgeBases(data);
       setIsLoading(false);
     } catch (error) {
@@ -56,7 +57,7 @@ export default function NewChatPage() {
     setIsSubmitting(true);
 
     try {
-      const data = await api.post("/chat/rag/create", {
+      const data = await createChat({
         chatName: title,
         kbId: selectedKB.toString(),
       });

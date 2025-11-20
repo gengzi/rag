@@ -30,6 +30,11 @@ const API_CONFIG = {
       
       // 文档搜索API
       SEARCH: '/document/search'
+    },
+    // 聊天相关API
+    CHAT: {
+      // 获取聊天记录API
+      HISTORY: '/chat/msg/:id/list'
     }
   },
   

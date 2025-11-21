@@ -1,5 +1,10 @@
 spring:
   ai:
+    alibaba:
+      toolcalling:
+        tavilysearch:
+          api-key: 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
+          enabled: true
     chat:
       client:
         enabled: false
@@ -60,17 +65,23 @@ deepresearch:
       nodeName: CoordinatorNode
       displayTitle: "意图识别"
       nextNodeKey: "CoordinatorNode_next_node"
-      model: Qwen/QwQ-32B
+      model: deepseek-ai/DeepSeek-V3
       prompts:
         - /prompts/coordinator.md
       tools:
         - plannerTool
-    PlannerNode:
-      nodeName: PlannerNode
-      displayTitle: "规划"
-      nextNodeKey: "PlannerNode_next_node"
-      model: Qwen/QwQ-32B
+    RewriteAndMultiQueryNode:
+      nodeName: RewriteAndMultiQueryNode
+      displayTitle: "问题扩展"
+      nextNodeKey: ""
+      model: deepseek-ai/DeepSeek-V3
       prompts:
-        - /prompts/coordinator.md
       tools:
-        - plannerTool
+    BackgroundInvectigationNode:
+      nodeName: BackgroundInvectigationNode
+      displayTitle: "检索助手"
+      nextNodeKey: ""
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+        - /prompts/background.md
+      tools:

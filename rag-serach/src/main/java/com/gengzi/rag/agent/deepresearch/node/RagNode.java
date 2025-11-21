@@ -30,15 +30,15 @@ import static com.alibaba.cloud.ai.graph.StateGraph.END;
  * 用户意图识别节点
  * 用于判断用户是闲聊还是问答
  */
-public class CoordinatorNode extends AbstractLlmNodeAction {
+public class RagNode extends AbstractLlmNodeAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(CoordinatorNode.class);
+    private static final Logger logger = LoggerFactory.getLogger(RagNode.class);
 
     private final DeepResearchConfig deepResearchConfig;
 
     private final OpenAiChatModel.Builder openAiChatModelBuilder;
 
-    public CoordinatorNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
+    public RagNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
     }
@@ -51,30 +51,9 @@ public class CoordinatorNode extends AbstractLlmNodeAction {
     @Override
     public Map<String, Object> apply(OverAllState state) throws Exception {
         logger.info("coordinator node is running.");
-        // 获取入参
-        String query = StateUtil.getQuery(state);
-        // 执行具体业务
-        ChatClient chatClient = bulidChatClient();
-        ChatResponse response = chatClient.prompt()
-                .system(bulidPromptTemplate().getTemplate())
-                .toolCallbacks(bulidToolCallback())
-                .user(query)
-                .call()
-                .chatResponse();
 
-        HashMap<String, Object> resultMap = new HashMap<>();
-
-
-        if (response.hasToolCalls()) {
-            //  工具已经调用
-            resultMap.put(getNodeConfig().getNextNodeKey(), "RewriteAndMultiQueryNode");
-            resultMap.put("deep_research", true);
-        } else {
-            resultMap.put(getNodeConfig().getNextNodeKey(), END);
-            resultMap.put("output", response.getResult().getOutput().getText());
-        }
         // 赋值出参
-        return resultMap;
+        return Map.of();
     }
 
     /**

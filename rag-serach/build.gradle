@@ -11,7 +11,7 @@ repositories {
 }
 
 ext {
-    set('springAiAlibabaVersion', "1.0.0.4")
+    set('springAiAlibabaVersion', "1.1.0.0-M5")
 }
 
 dependencyManagement {
@@ -71,6 +71,8 @@ dependencies {
     // 数据库相关
     runtimeOnly 'com.mysql:mysql-connector-j'
     implementation "com.alibaba.cloud.ai:spring-ai-alibaba-graph-core"
+
+    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-tool-calling-searches:1.1.0.0-M4'
 }
 
 test {

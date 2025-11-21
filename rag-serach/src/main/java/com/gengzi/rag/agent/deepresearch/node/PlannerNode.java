@@ -30,15 +30,15 @@ import static com.alibaba.cloud.ai.graph.StateGraph.END;
  * 用户意图识别节点
  * 用于判断用户是闲聊还是问答
  */
-public class CoordinatorNode extends AbstractLlmNodeAction {
+public class PlannerNode extends AbstractLlmNodeAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(CoordinatorNode.class);
+    private static final Logger logger = LoggerFactory.getLogger(PlannerNode.class);
 
     private final DeepResearchConfig deepResearchConfig;
 
     private final OpenAiChatModel.Builder openAiChatModelBuilder;
 
-    public CoordinatorNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
+    public PlannerNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
     }
@@ -67,7 +67,7 @@ public class CoordinatorNode extends AbstractLlmNodeAction {
 
         if (response.hasToolCalls()) {
             //  工具已经调用
-            resultMap.put(getNodeConfig().getNextNodeKey(), "RewriteAndMultiQueryNode");
+            resultMap.put(getNodeConfig().getNextNodeKey(), "rewrite_multi_query");
             resultMap.put("deep_research", true);
         } else {
             resultMap.put(getNodeConfig().getNextNodeKey(), END);

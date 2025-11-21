@@ -693,7 +693,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 /* 用户消息 - 右对齐 */
                 <div className="flex-1 flex justify-end">
                   <div className="max-w-[85%]">
-                    <div className="bg-primary rounded-lg shadow-sm p-4 text-right text-primary-foreground hover:bg-primary/95 transition-all duration-200">
+                    <div className="bg-primary rounded-lg shadow-sm p-4 text-right text-primary-foreground hover:bg-primary/95 transition-all duration-200 word-break:break-word overflow-wrap:anywhere">
                       <p>{message.content}</p>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 text-right">
@@ -711,8 +711,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                     <div className="h-10 w-10 flex-shrink-0 rounded-full bg-secondary/10 p-2 text-secondary flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-105">
                       <Bot className="h-5 w-5" />
                     </div>
-                    <div className="ml-3 max-w-[85%]">
-                      <div className="bg-card rounded-lg shadow-sm p-4 hover:bg-card/95 transition-all duration-200">
+                    <div className="ml-3 max-w-[85%] w-full">
+                      <div className="bg-card rounded-lg shadow-sm p-4 hover:bg-card/95 transition-all duration-200 word-break:break-word overflow-wrap:anywhere">
                         {message.processFlow ? (
                           <AgentAnswer processFlow={message.processFlow} content={message.content} citations={message.citations} ragReference={message.ragReference} />
                         ) : (

@@ -187,7 +187,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
               </div>
 
               {/* 节点内容 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow w-full">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-medium text-sm">{node.displayTitle || node.name}</h4>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
@@ -196,7 +196,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                 </span>
                 </div>
                 {node.description && (
-                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words">
+                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words overflow-wrap:anywhere word-break:break-word">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
@@ -218,7 +218,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
       return (
           <div key={node.id}>
             {node.content && (
-                <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-xl prose-h2:font-bold prose-h2:text-lg prose-h3:font-bold prose-h3:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 break-words">
+                <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-xl prose-h2:font-bold prose-h2:text-lg prose-h3:font-bold prose-h3:text-base prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 break-words overflow-wrap:anywhere word-break:break-word w-full">
                   <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkMath]}
                       rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}

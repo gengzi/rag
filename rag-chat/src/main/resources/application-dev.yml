@@ -16,6 +16,13 @@ spring:
       hibernate:
         format_sql: true  # 格式化SQL
     database-platform: org.hibernate.dialect.MySQL8Dialect  # 指定MySQL方言
+  data:
+    redis:
+      database: 0
+      host: 127.0.0.1          # 单机模式用 host + port
+      port: 6379
+      password: ""
+
 
 
 ## 第三方模型参数配置

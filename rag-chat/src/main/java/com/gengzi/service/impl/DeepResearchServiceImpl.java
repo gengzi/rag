@@ -3,13 +3,14 @@ package com.gengzi.service.impl;
 
 import com.alibaba.cloud.ai.graph.*;
 import com.alibaba.cloud.ai.graph.checkpoint.config.SaverConfig;
-import com.alibaba.cloud.ai.graph.checkpoint.constant.SaverEnum;
-import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.RedisSaver;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
+import com.gengzi.config.CustomThreadPool;
 import com.gengzi.rag.agent.deepresearch.process.DeepResearchGraphProcess;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.ChatMessageResponse;
 import com.gengzi.service.DeepResearchService;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,17 +27,21 @@ import java.util.Map;
 public class DeepResearchServiceImpl implements DeepResearchService {
     private static final Logger logger = LoggerFactory.getLogger(DeepResearchServiceImpl.class);
 
-    private MemorySaver memorySaver;
+    private RedisSaver memorySaver;
 
     private CompiledGraph compiledGraph;
+
 
     @Autowired
     private DeepResearchGraphProcess deepResearchGraphProcess;
 
-    public DeepResearchServiceImpl(@Qualifier("deepResearch") StateGraph deepResearch) throws GraphStateException {
+//    @Autowired
+//    private RedissonClient redissonClient;
+
+    public DeepResearchServiceImpl(@Qualifier("deepResearch") StateGraph deepResearch, RedissonClient redissonClient) throws GraphStateException {
         // 记忆缓存类
-        memorySaver = new MemorySaver();
-        SaverConfig saverConfig = SaverConfig.builder().register(SaverEnum.MEMORY.getValue(), memorySaver).build();
+        memorySaver = new RedisSaver(redissonClient);
+        SaverConfig saverConfig = SaverConfig.builder().register(memorySaver).build();
         this.compiledGraph = deepResearch.compile(CompileConfig.builder().saverConfig(saverConfig).build());
     }
 
@@ -50,10 +55,12 @@ public class DeepResearchServiceImpl implements DeepResearchService {
         objectMap.put("query", req.getQuery());
         objectMap.put("conversationId", req.getConversationId());
         String threadId = deepResearchGraphProcess.createSession(req.getConversationId());
-        RunnableConfig runnableConfig = RunnableConfig.builder().threadId(threadId).build();
+        RunnableConfig runnableConfig = RunnableConfig.builder()
+                .addParallelNodeExecutor("RewriteAndMultiQueryNode", CustomThreadPool.createIoIntensivePool("deepresearch"))
+                .threadId(threadId).build();
         // 输出
         Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink = Sinks.many().unicast().onBackpressureBuffer();
-        Flux<NodeOutput> nodeOutputFlux = compiledGraph.fluxStream(objectMap, runnableConfig);
+        Flux<NodeOutput> nodeOutputFlux = compiledGraph.stream(objectMap, runnableConfig);
         deepResearchGraphProcess.processStream(threadId, nodeOutputFlux, sink);
 
         return sink.asFlux()

@@ -6,8 +6,8 @@ services:
     ports:
       - "6379:6379"  # 端口映射（宿主机:容器内）
     volumes:
-      - E:\redis\conf:/etc/redis  # 挂载配置文件目录（宿主机 -> 容器）
-      - E:\redis\data:/data  # 挂载数据目录（持久化存储）
+      - F:\redis\conf:/etc/redis  # 挂载配置文件目录（宿主机 -> 容器）
+      - F:\redis\data:/data  # 挂载数据目录（持久化存储）
     command: redis-server /etc/redis/redis.conf  # 指定配置文件启动
     environment:
       - TZ=Asia/Shanghai  # 时区设置（避免日志时间错乱）

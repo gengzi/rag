@@ -10,6 +10,46 @@ import rehypeRaw from 'rehype-raw';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
 import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
+
+const CustomTable = ({ children, ...props }: any) => (
+  <table 
+    {...props} 
+    className="border border-gray-300 border-collapse w-full"
+  >
+    {children}
+  </table>
+);
+
+const CustomThead = ({ children, ...props }: any) => (
+  <thead {...props}>
+    {children}
+  </thead>
+);
+
+const CustomTr = ({ children, ...props }: any) => (
+  <tr {...props}>
+    {children}
+  </tr>
+);
+
+const CustomTh = ({ children, ...props }: any) => (
+  <th 
+    {...props} 
+    className="border border-gray-300 px-4 py-2 bg-gray-50 font-semibold text-left"
+  >
+    {children}
+  </th>
+);
+
+const CustomTd = ({ children, ...props }: any) => (
+  <td 
+    {...props} 
+    className="border border-gray-300 px-4 py-2"
+  >
+    {children}
+  </td>
+);
 
 const Code = ({ className, children, ...props }: any) => {
   const isCodeBlock = className && className.includes('language-');
@@ -200,7 +240,14 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
-                            components={{ code: Code }}
+                            components={{
+                              code: Code,
+                              table: CustomTable,
+                              thead: CustomThead,
+                              tr: CustomTr,
+                              th: CustomTh,
+                              td: CustomTd
+                            }}
                         >
                             {node.description}
                         </ReactMarkdown>
@@ -222,7 +269,14 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                   <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkMath]}
                       rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
-                      components={{ code: Code }}
+                      components={{
+                        code: Code,
+                        table: CustomTable,
+                        thead: CustomThead,
+                        tr: CustomTr,
+                        th: CustomTh,
+                        td: CustomTd
+                      }}
                   >
                     {node.content}
                   </ReactMarkdown>
@@ -290,7 +344,14 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                                   <ReactMarkdown
                                 remarkPlugins={[remarkGfm, remarkMath]}
                                 rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}
-                                components={{ code: Code }}
+                                components={{
+                                  code: Code,
+                                  table: CustomTable,
+                                  thead: CustomThead,
+                                  tr: CustomTr,
+                                  th: CustomTh,
+                                  td: CustomTd
+                                }}
                               >
                                 {ref.text || ''}
                               </ReactMarkdown>

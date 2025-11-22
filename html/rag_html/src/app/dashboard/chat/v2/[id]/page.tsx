@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Send, User, Bot, ArrowLeft, MessageSquare, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
@@ -97,15 +97,18 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     return '';
   };
 
-  // 获取聊天记录
-  const fetchChatHistory = async (loadMore = false) => {
+  // 获取聊天记录 - 使用useCallback包装以避免不必要的重新创建
+  const fetchChatHistory = useCallback(async (loadMore = false) => {
+    // 防止重复加载
+    if (loadingChat) return;
+    
     try {
       setLoadingChat(true);
       const limit = 50;
       const currentBefore = loadMore ? before : "";
       
       // 使用项目公共API模块调用获取聊天记录API
-      console.log('调用API获取聊天记录...');
+      console.log('调用API获取聊天记录...', { loadMore, before: currentBefore });
       const data = await getChatHistory({ id, limit, before: currentBefore });
       console.log('API返回数据:', JSON.stringify(data));
 
@@ -142,6 +145,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         console.error('API返回数据格式错误，无法解析消息:', data);
         // 这里选择继续处理空数组，避免后续代码出错
         messagesToProcess = [];
+      }
+      
+      // 如果没有消息需要处理，直接返回
+      if (messagesToProcess.length === 0) {
+        return;
       }
       
       const formattedMessages: Message[] = [];
@@ -254,9 +262,22 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         if (loadMore) {
           // 向上滚动加载时，将新消息添加到现有消息的前面
           setMessages(prev => [...formattedMessages, ...prev]);
+          // 保存当前滚动位置
+          const currentScrollHeight = messagesContainerRef.current?.scrollHeight || 0;
+          // 等待DOM更新后恢复滚动位置
+          setTimeout(() => {
+            if (messagesContainerRef.current) {
+              const newScrollHeight = messagesContainerRef.current.scrollHeight;
+              messagesContainerRef.current.scrollTop = newScrollHeight - currentScrollHeight;
+            }
+          }, 0);
         } else {
           // 初始加载时替换现有消息
           setMessages(formattedMessages);
+          // 聊天记录加载完成后滚动到底部
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         }
         
         // 设置聊天标题为第一条用户消息或默认值
@@ -266,10 +287,6 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             setChatTitle(firstUserMessage.content.substring(0, 20) + (firstUserMessage.content.length > 20 ? '...' : ''));
           }
         }
-      // 聊天记录加载完成后滚动到底部
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
     } catch (error) {
       console.error('获取聊天记录错误:', error);
       toast({
@@ -280,12 +297,203 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     } finally {
       setLoadingChat(false);
     }
-  };
+  }, [id, before, hasMore, loadingChat, toast]);
 
   // 组件加载时获取聊天记录
   useEffect(() => {
-    fetchChatHistory();
-  }, [id]);
+    // 初始化只执行一次
+    const initChat = async () => {
+      try {
+        setLoadingChat(true);
+        const limit = 50;
+        const currentBefore = "";
+        
+        console.log('调用API获取聊天记录...');
+        const data = await getChatHistory({ id, limit, before: currentBefore });
+        console.log('API返回数据:', JSON.stringify(data));
+
+        // 更新before参数用于下一次加载
+        let hasMoreData = true;
+        if (data) {
+          if (data.before) {
+            setBefore(data.before);
+          } else {
+            hasMoreData = false;
+          }
+        } else {
+          hasMoreData = false;
+        }
+        setHasMore(hasMoreData);
+        
+        // 如果没有数据，直接返回
+        if (!data) {
+          setLoadingChat(false);
+          return;
+        }
+        
+        // 后续处理逻辑与fetchChatHistory相同
+        let messagesToProcess = [];
+        if (Array.isArray(data.message)) {
+          messagesToProcess = data.message;
+        } else if (data.data && Array.isArray(data.data.message)) {
+          messagesToProcess = data.data.message;
+        } else if (data.code === 200 && data.data && Array.isArray(data.data.message)) {
+          messagesToProcess = data.data.message;
+        } else {
+          console.error('API返回数据格式错误，无法解析消息:', data);
+          messagesToProcess = [];
+        }
+        
+        const formattedMessages: Message[] = [];
+        let latestThreadId = '';
+        
+        // 处理消息格式化...（与fetchChatHistory相同的逻辑）
+        messagesToProcess.forEach((msg: any) => {
+          if (msg.content && Array.isArray(msg.content)) {
+            const processNodes: ProcessNode[] = [];
+            const processEdges: Array<{ from: string; to: string }> = [];
+            
+            msg.content.forEach((contentItem: any, index: number) => {
+              if (contentItem.threadId !== undefined) {
+                latestThreadId = contentItem.threadId || '';
+              }
+              if (contentItem.messageType === 'text') {
+                const answer = contentItem.content?.answer || '';
+                const messageContent = typeof answer === 'string' ? answer : JSON.stringify(answer);
+                const references = contentItem.content?.reference?.reference || [];
+                
+                const llmNode: ProcessNode = {
+                  type: 'llm',
+                  id: `llm-${index}`,
+                  name: '回答生成',
+                  status: 'completed',
+                  content: messageContent,
+                  reference: references,
+                  order: index
+                };
+                
+                processNodes.push(llmNode);
+              } else if (contentItem.messageType === 'agent') {
+                const agentData = contentItem.content || {};
+                const nodeName = agentData.nodeName || `agent-${index}`;
+                const displayTitle = agentData.displayTitle || nodeName;
+                const nodeContent = agentData.content || '';
+                const references = agentData.reference?.reference || [];
+                
+                const agentNode: ProcessNode = {
+                  type: 'agent',
+                  id: nodeName,
+                  name: nodeName,
+                  displayTitle: displayTitle,
+                  status: 'completed',
+                  content: typeof nodeContent === 'string' ? nodeContent : JSON.stringify(nodeContent),
+                  description: typeof nodeContent === 'string' ? nodeContent : JSON.stringify(nodeContent),
+                  reference: references,
+                  order: index
+                };
+                
+                processNodes.push(agentNode);
+              }
+            });
+            
+            for (let i = 1; i < processNodes.length; i++) {
+              processEdges.push({
+                from: processNodes[i-1].id,
+                to: processNodes[i].id
+              });
+            }
+            
+            const processFlow: ProcessFlow = {
+              nodes: processNodes,
+              edges: processEdges
+            };
+            
+            const firstTextContent = msg.content.find((item: any) => item.messageType === 'text');
+            const messageContent = firstTextContent?.content?.answer || '';
+            const ragReference = firstTextContent?.content?.reference;
+            
+            formattedMessages.push({
+              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              content: typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent),
+              role: msg.role === 'USER' ? 'user' : 'assistant',
+              createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              citations: firstTextContent?.content?.reference?.reference || [],
+              ragReference: ragReference,
+              processFlow: processFlow,
+              isAgent: msg.content.some((item: any) => item.messageType === 'agent')
+            });
+          } else if (msg.content && typeof msg.content === 'string') {
+            formattedMessages.push({
+              id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              content: msg.content,
+              role: msg.role === 'USER' ? 'user' : 'assistant',
+              createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              citations: [],
+              ragReference: undefined,
+              processFlow: undefined,
+              isAgent: false
+            });
+          }
+        });
+        
+        if (latestThreadId) {
+          setThreadId(latestThreadId);
+        }
+        
+        // 关键修改：根据loadMore参数决定是替换还是追加消息
+        if (loadMore) {
+          // 加载更多时，将新消息添加到现有消息列表的前面
+          // 同时保存当前滚动位置信息，以便加载完成后恢复
+          const container = messagesContainerRef.current;
+          if (container) {
+            const { scrollHeight, clientHeight } = container;
+            const scrollTopBefore = container.scrollTop;
+            const newMessageHeight = scrollHeight; // 近似值，实际应该计算新消息的高度
+            
+            setMessages(prevMessages => [...formattedMessages, ...prevMessages]);
+            
+            // 使用setTimeout确保DOM更新后再调整滚动位置
+            setTimeout(() => {
+              if (container) {
+                // 计算新的滚动位置，保持用户视图相对不变
+                container.scrollTop = container.scrollHeight - newMessageHeight;
+              }
+            }, 0);
+          } else {
+            setMessages(prevMessages => [...formattedMessages, ...prevMessages]);
+          }
+        } else {
+          // 首次加载时，替换整个消息列表
+          setMessages(formattedMessages);
+        }
+        
+        // 设置聊天标题
+        if (formattedMessages.length > 0) {
+          const firstUserMessage = formattedMessages.find(msg => msg.role === 'user');
+          if (firstUserMessage) {
+            setChatTitle(firstUserMessage.content.substring(0, 20) + (firstUserMessage.content.length > 20 ? '...' : ''));
+          }
+        }
+      } catch (error) {
+        console.error('获取聊天记录错误:', error);
+        toast({
+          title: "错误",
+          description: "获取聊天记录失败",
+          variant: "destructive"
+        });
+      } finally {
+        setLoadingChat(false);
+        
+        // 聊天记录加载完成后滚动到底部
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    };
+    
+    // 只在组件挂载时执行一次
+    initChat();
+  }, [id, toast]);
 
   // 滚动监听实现加载更多
   useEffect(() => {
@@ -294,7 +502,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      if (scrollTop === 0 && !loadingChat && hasMore) {
+      // 允许有小的误差范围，当接近顶部时就触发加载
+      if (scrollTop <= 10 && !loadingChat && hasMore) {
         // 滚动到顶部且有更多记录时加载
         fetchChatHistory(true);
       }

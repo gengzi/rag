@@ -108,15 +108,15 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       const currentBefore = loadMore ? before : "";
       
       // 使用项目公共API模块调用获取聊天记录API
-      console.log('调用API获取聊天记录...', { loadMore, before: currentBefore });
+      console.log('调用API获取聊天记录...');
       const data = await getChatHistory({ id, limit, before: currentBefore });
       console.log('API返回数据:', JSON.stringify(data));
 
-      // 更新before参数用于下一次加载
+      // 更新before参数用于下一次加载，使用nextCursor作为before参数
       let hasMoreData = true;
       if (data) {
-        if (data.before) {
-          setBefore(data.before);
+        if (data.nextCursor) {
+          setBefore(data.nextCursor);
         } else {
           hasMoreData = false;
         }
@@ -145,11 +145,6 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         console.error('API返回数据格式错误，无法解析消息:', data);
         // 这里选择继续处理空数组，避免后续代码出错
         messagesToProcess = [];
-      }
-      
-      // 如果没有消息需要处理，直接返回
-      if (messagesToProcess.length === 0) {
-        return;
       }
       
       const formattedMessages: Message[] = [];
@@ -312,11 +307,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         const data = await getChatHistory({ id, limit, before: currentBefore });
         console.log('API返回数据:', JSON.stringify(data));
 
-        // 更新before参数用于下一次加载
+        // 更新before参数用于下一次加载，使用nextCursor作为before参数
         let hasMoreData = true;
         if (data) {
-          if (data.before) {
-            setBefore(data.before);
+          if (data.nextCursor) {
+            setBefore(data.nextCursor);
           } else {
             hasMoreData = false;
           }
@@ -440,32 +435,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
           setThreadId(latestThreadId);
         }
         
-        // 关键修改：根据loadMore参数决定是替换还是追加消息
-        if (loadMore) {
-          // 加载更多时，将新消息添加到现有消息列表的前面
-          // 同时保存当前滚动位置信息，以便加载完成后恢复
-          const container = messagesContainerRef.current;
-          if (container) {
-            const { scrollHeight, clientHeight } = container;
-            const scrollTopBefore = container.scrollTop;
-            const newMessageHeight = scrollHeight; // 近似值，实际应该计算新消息的高度
-            
-            setMessages(prevMessages => [...formattedMessages, ...prevMessages]);
-            
-            // 使用setTimeout确保DOM更新后再调整滚动位置
-            setTimeout(() => {
-              if (container) {
-                // 计算新的滚动位置，保持用户视图相对不变
-                container.scrollTop = container.scrollHeight - newMessageHeight;
-              }
-            }, 0);
-          } else {
-            setMessages(prevMessages => [...formattedMessages, ...prevMessages]);
-          }
-        } else {
-          // 首次加载时，替换整个消息列表
-          setMessages(formattedMessages);
-        }
+        setMessages(formattedMessages);
         
         // 设置聊天标题
         if (formattedMessages.length > 0) {
@@ -502,8 +472,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      // 允许有小的误差范围，当接近顶部时就触发加载
-      if (scrollTop <= 10 && !loadingChat && hasMore) {
+      if (scrollTop === 0 && !loadingChat && hasMore) {
         // 滚动到顶部且有更多记录时加载
         fetchChatHistory(true);
       }
@@ -511,15 +480,20 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [loadingChat, hasMore]);
+  }, [loadingChat, hasMore, fetchChatHistory]);
 
   /**
    * 自动滚动到底部效果
-   * 当消息列表或加载状态变化时触发
+   * 只在聊天初始化完成后自动滚动到底部
    */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+    // 只有在初始加载完成且不是加载更多历史记录时才滚动到底部
+    if (messages.length > 0 && !loadingChat) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, []); // 空依赖数组，只在组件挂载后执行一次
 
   /**
    * 处理输入框内容变化
@@ -896,6 +870,16 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
 
         {/* 聊天消息区域 */}
         <div ref={messagesContainerRef} className="max-h-[80vh] overflow-y-auto">
+          {/* 加载更多历史记录指示器 */}
+          {loadingChat && messages.length > 0 && (
+            <div className="flex justify-center py-4 animate-fadeIn">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">正在加载更多历史记录...</span>
+              </div>
+            </div>
+          )}
+          
           {messages.map((message) => (
             <div key={message.id} className="flex items-start mb-4">
               {message.role === 'user' ? (

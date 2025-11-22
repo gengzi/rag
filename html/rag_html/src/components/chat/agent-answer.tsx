@@ -190,6 +190,8 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                                                  }) => {
   // 用于存储每个节点的引用展开状态
   const [expandedRefs, setExpandedRefs] = useState<Record<string, boolean>>({});
+  // 用于存储每个代理节点的展开状态，默认折叠
+  const [expandedAgents, setExpandedAgents] = useState<Record<string, boolean>>({});
 
   /**
    * 切换引用信息的展开/折叠状态
@@ -197,6 +199,17 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
    */
   const toggleReference = (nodeId: string) => {
     setExpandedRefs(prev => ({
+      ...prev,
+      [nodeId]: !prev[nodeId]
+    }));
+  };
+
+  /**
+   * 切换代理节点的展开/折叠状态
+   * @param nodeId 节点ID
+   */
+  const toggleAgentNode = (nodeId: string) => {
+    setExpandedAgents(prev => ({
       ...prev,
       [nodeId]: !prev[nodeId]
     }));
@@ -227,16 +240,26 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
               </div>
 
               {/* 节点内容 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow w-full">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium text-sm">{node.displayTitle || node.name}</h4>
+              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow w-full transition-all duration-300">
+                <button 
+                  onClick={() => toggleAgentNode(node.id)}
+                  className="w-full flex justify-between items-center mb-2 text-left focus:outline-none hover:no-underline"
+                >
+                  <h4 className="font-medium text-sm flex items-center">
+                    <span className="mr-2 transition-transform duration-300">
+                      {expandedAgents[node.id] ? <ChevronDown className="h-4 w-4 inline" /> : <ChevronRight className="h-4 w-4 inline" />}
+                    </span>
+                    {node.displayTitle || node.name}
+                  </h4>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
                   {node.status === 'active' ? '执行中' :
                       node.status === 'completed' ? '已完成' : '待执行'}
                 </span>
-                </div>
-                {node.description && (
-                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words overflow-wrap:anywhere word-break:break-word">
+                </button>
+                
+                {/* 根据展开状态显示/隐藏节点描述 */}
+                {expandedAgents[node.id] && node.description && (
+                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words overflow-wrap:anywhere word-break:break-word animate-fadeIn">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}

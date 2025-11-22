@@ -256,6 +256,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         }
         if (loadMore) {
           // 向上滚动加载时，将新消息添加到现有消息的前面，但避免重复
+          // 保持API返回的原始顺序
           setMessages(prev => {
             // 创建一个Set存储已存在的消息ID，用于快速去重
             const existingIds = new Set(prev.map(msg => msg.id));
@@ -263,9 +264,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             // 过滤掉已存在的消息
             const newUniqueMessages = formattedMessages.filter(msg => !existingIds.has(msg.id));
             
-            // 合并并按时间戳排序
-            return [...newUniqueMessages, ...prev]
-              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            // 直接合并，保持原始顺序
+            return [...newUniqueMessages, ...prev];
           });
           // 保存当前滚动位置
           const currentScrollHeight = messagesContainerRef.current?.scrollHeight || 0;
@@ -277,26 +277,23 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             }
           }, 0);
         } else {
-          // 初始加载时替换现有消息并按时间戳排序
-          const sortedMessages = formattedMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          setMessages(sortedMessages);
+          // 初始加载时替换现有消息，保持API返回的原始顺序
+          setMessages(formattedMessages);
           // 聊天记录加载完成后滚动到底部
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
         }
         
-        // 设置聊天标题为最早的用户消息
-        // 合并所有消息并找到最早的用户消息
+        // 设置聊天标题为第一条用户消息
+        // 使用已加载的消息找到第一条用户消息
         const allMessagesForTitle = loadMore 
           ? [...formattedMessages, ...messages] 
           : formattedMessages;
-        const earliestUserMessage = [...allMessagesForTitle]
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-          .find(msg => msg.role === 'user');
+        const firstUserMessage = allMessagesForTitle.find(msg => msg.role === 'user');
         
-        if (earliestUserMessage) {
-          setChatTitle(earliestUserMessage.content.substring(0, 20) + (earliestUserMessage.content.length > 20 ? '...' : ''));
+        if (firstUserMessage) {
+          setChatTitle(firstUserMessage.content.substring(0, 20) + (firstUserMessage.content.length > 20 ? '...' : ''));
         }
     } catch (error) {
       console.error('获取聊天记录错误:', error);
@@ -451,14 +448,13 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
           setThreadId(latestThreadId);
         }
         
-        // 按时间戳排序消息
-        const sortedMessages = formattedMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        setMessages(sortedMessages);
+        // 保持API返回的原始顺序
+        setMessages(formattedMessages);
         
-        // 设置聊天标题为最早的用户消息
-        const earliestUserMessage = sortedMessages.find(msg => msg.role === 'user');
-        if (earliestUserMessage) {
-          setChatTitle(earliestUserMessage.content.substring(0, 20) + (earliestUserMessage.content.length > 20 ? '...' : ''));
+        // 设置聊天标题为第一条用户消息
+        const firstUserMessage = formattedMessages.find(msg => msg.role === 'user');
+        if (firstUserMessage) {
+          setChatTitle(firstUserMessage.content.substring(0, 20) + (firstUserMessage.content.length > 20 ? '...' : ''));
         }
       } catch (error) {
         console.error('获取聊天记录错误:', error);

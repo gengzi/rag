@@ -7,6 +7,7 @@ import com.alibaba.cloud.ai.graph.checkpoint.savers.RedisSaver;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
 import com.gengzi.config.CustomThreadPool;
 import com.gengzi.rag.agent.deepresearch.process.DeepResearchGraphProcess;
+import com.gengzi.request.AgentChatReq;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.ChatMessageResponse;
 import com.gengzi.service.DeepResearchService;
@@ -54,6 +55,10 @@ public class DeepResearchServiceImpl implements DeepResearchService {
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuery());
         objectMap.put("conversationId", req.getConversationId());
+        objectMap.put("threadId", req.getThreadId());
+        if (req instanceof AgentChatReq agentChatReq) {
+            objectMap.put("userId", agentChatReq.getUserId());
+        }
         String threadId = deepResearchGraphProcess.createSession(req.getConversationId());
         RunnableConfig runnableConfig = RunnableConfig.builder()
                 .addParallelNodeExecutor("RewriteAndMultiQueryNode", CustomThreadPool.createIoIntensivePool("deepresearch"))

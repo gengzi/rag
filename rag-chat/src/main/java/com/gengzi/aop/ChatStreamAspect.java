@@ -75,10 +75,16 @@ public class ChatStreamAspect {
         }
 
         // -------------------- 2. 执行原方法，获取流式响应 --------------------
-        Object result = joinPoint.proceed(); // 执行 generateStream 方法，返回 Flux<ServerSentEvent<ChatMessageResponse>>
-        if (!(result instanceof Flux)) {
-            return result; // 非 Flux 类型直接返回（理论上不会进入）
+        Object result = null;
+        try {
+            result = joinPoint.proceed(); // 执行 generateStream 方法，返回 Flux<ServerSentEvent<ChatMessageResponse>>
+            if (!(result instanceof Flux)) {
+                return result; // 非 Flux 类型直接返回（理论上不会进入）
+            }
+        } catch (Exception e) {
+            log.error("请求异常：{}", e.getMessage());
         }
+
 
         Flux<ServerSentEvent<ChatMessageResponse>> originalFlux = (Flux<ServerSentEvent<ChatMessageResponse>>) result;
 

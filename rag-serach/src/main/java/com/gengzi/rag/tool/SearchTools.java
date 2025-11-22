@@ -22,7 +22,7 @@ public class SearchTools {
     private TavilySearchService tavilySearch;
 
     @Tool(description = "根据用户提问信息，检索互联网上的信息")
-    public String getCurrentDateTime(@ToolParam(description = "用户提问", required = true) String query) {
+    public String search(@ToolParam(description = "用户提问", required = true) String query) {
         logger.debug("用户query: {}", query);
         StringBuilder sb = new StringBuilder();
         SearchService.Response response = tavilySearch.query(query);

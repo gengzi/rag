@@ -63,7 +63,7 @@ deepresearch:
   nodes:
     CoordinatorNode:
       nodeName: CoordinatorNode
-      displayTitle: "意图识别"
+      displayTitle: "意图识别助手"
       nextNodeKey: "CoordinatorNode_next_node"
       model: deepseek-ai/DeepSeek-V3
       prompts:
@@ -72,16 +72,55 @@ deepresearch:
         - plannerTool
     RewriteAndMultiQueryNode:
       nodeName: RewriteAndMultiQueryNode
-      displayTitle: "问题扩展"
-      nextNodeKey: ""
+      displayTitle: "问题扩展助手"
+      nextNodeKey: "BackgroundInvectigationNode"
       model: deepseek-ai/DeepSeek-V3
       prompts:
       tools:
     BackgroundInvectigationNode:
       nodeName: BackgroundInvectigationNode
       displayTitle: "检索助手"
-      nextNodeKey: ""
+      nextNodeKey: "RagNode"
       model: deepseek-ai/DeepSeek-V3
       prompts:
         - /prompts/background.md
+      tools:
+    RagNode:
+      nodeName: RagNode
+      displayTitle: "知识库助手"
+      nextNodeKey: "PlannerNode"
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+      tools:
+    PlannerNode:
+      nodeName: PlannerNode
+      displayTitle: "智能规划助手"
+      nextNodeKey: "InformationNode"
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+        - /prompts/planner.md
+      tools:
+    InformationNode:
+      nodeName: InformationNode
+      displayTitle: "信息整合助手"
+      nextNodeKey: "InformationNode_next_node"
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+      tools:
+    ParalleExecutorNode:
+      nodeName: ParalleExecutorNode
+      displayTitle: "批量任务执行助手"
+      nextNodeKey: "ParalleExecutorNode_next_node"
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+        - /prompts/researcher.md
+      tools:
+        - searchTools
+    ReporterNode:
+      nodeName: ParalleExecutorNode
+      displayTitle: "报告生成助手"
+      nextNodeKey: "ReporterNode_next_node"
+      model: deepseek-ai/DeepSeek-V3
+      prompts:
+        - /prompts/reporter.md
       tools:

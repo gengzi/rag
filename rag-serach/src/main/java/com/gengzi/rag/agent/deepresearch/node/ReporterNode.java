@@ -5,17 +5,18 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.rag.agent.deepresearch.config.NodeConfig;
+import com.gengzi.rag.agent.deepresearch.dto.Plan;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.deepresearch.util.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.support.ToolCallbacks;
@@ -30,23 +31,24 @@ import java.util.stream.Collectors;
 
 
 /**
- * 用户意图识别节点
- * 用于判断用户是闲聊还是问答
+ * 信息节点
  */
-public class PlannerNode extends AbstractLlmNodeAction {
+public class ReporterNode extends AbstractLlmNodeAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(PlannerNode.class);
+    private static final Logger logger = LoggerFactory.getLogger(ReporterNode.class);
 
     private final DeepResearchConfig deepResearchConfig;
 
     private final OpenAiChatModel.Builder openAiChatModelBuilder;
 
-    private final int maxStepNum;
 
-    public PlannerNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder, int maxStepNum) {
+    private final BeanOutputConverter<Plan> converter;
+
+    public ReporterNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
-        this.maxStepNum = maxStepNum;
+        this.converter = new BeanOutputConverter<>(Plan.class);
+
     }
 
     /**
@@ -61,7 +63,12 @@ public class PlannerNode extends AbstractLlmNodeAction {
         String query = StateUtil.getQuery(state);
         String searchResult = StateUtil.getSearchResult(state);
         String ragResult = StateUtil.getRagResult(state);
-
+        String paralleSearchResult = StateUtil.getParalleSearchResult(state);
+        // 业务逻辑
+        // 添加用户问题
+        // 添加检索信息
+        // 添加rag信息
+        // 一起提供给llm，生成一篇完整的报告。
         List<String> optimizeQueries = StateUtil.getOptimizeQueries(state);
         ArrayList<Message> messages = new ArrayList<>();
         // 获取系统提示词
@@ -77,6 +84,9 @@ public class PlannerNode extends AbstractLlmNodeAction {
         // 获取rag查询获取的内容
         UserMessage userMessageByRagContent = new UserMessage("本地知识库：" + ragResult);
         messages.add(userMessageByRagContent);
+        // 获取深度检索内容
+        UserMessage userMessageByParalleSearchResult = new UserMessage("深度研究：" + paralleSearchResult);
+        messages.add(userMessageByParalleSearchResult);
         // 获取人类反馈（如果有）
         String feedbackContent = state.value("feedbackContent", "").toString();
         if (StrUtil.isNotBlank(feedbackContent)) {
@@ -90,7 +100,7 @@ public class PlannerNode extends AbstractLlmNodeAction {
                 .stream()
                 .chatResponse();
         // 赋值出参
-        return Map.of("plannerResult", chatResponseFlux);
+        return Map.of("reporterResult", chatResponseFlux);
     }
 
     /**
@@ -120,8 +130,7 @@ public class PlannerNode extends AbstractLlmNodeAction {
         if (deepresearchNodes.containsKey(this.getClass().getSimpleName())) {
             return PromptTemplate.builder()
                     .template(ResourceUtil.loadFileContent(getNodeConfig().getPrompts().get(0)
-                                    .replace("{{ CURRENT_TIME }}", LocalDateTime.now().toString()))
-                            .replace("{{ max_step_num }}", maxStepNum + ""))
+                            .replace("{{ CURRENT_TIME }}", LocalDateTime.now().toString())))
                     .build();
         }
         return null;

@@ -8,9 +8,11 @@ import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.rag.agent.deepresearch.config.NodeConfig;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.deepresearch.util.StateUtil;
+import com.gengzi.rag.search.service.ChatRagService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -53,33 +55,35 @@ public class BackgroundInvectigationNode extends AbstractLlmNodeAction {
      */
     @Override
     public Map<String, Object> apply(OverAllState state) throws Exception {
-        logger.info("coordinator node is running.");
+        logger.info("BackgroundInvectigation node is running.");
         // 获取入参
         String query = StateUtil.getQuery(state);
         List<String> optimizeQueries = StateUtil.getOptimizeQueries(state);
         // 执行具体业务
         List<Mono<String>> searchResult = optimizeQueries.stream().map(q -> search(q)).collect(Collectors.toList());
-        Flux<String> searchMerge = Flux.merge(searchResult).collect(Collectors.joining("\n\n")).flatMapMany(
+        Flux<ChatResponse> searchMerge = Flux.mergeSequential(searchResult).collect(Collectors.joining("\n\n")).flatMapMany(
                 result -> {
-                     Flux<String> chatResponseFlux = bulidChatClient().prompt()
+                    Flux<ChatResponse> chatResponseFlux = bulidChatClient().prompt()
                             .user(result)
-                            .stream().content();
-                     return chatResponseFlux;
+                            .stream().chatResponse();
+                    return chatResponseFlux;
                 }
         );
-        GraphFlux<String> stringGraphFlux = GraphFlux.of("BackgroundInvectigationNode",
-                "searchResult",
-                searchMerge,
-                (str) -> {
-                    return Map.of("result", str);
-                },
-                chunk -> {
-                    return chunk;
-                }
-        );
+//        StringBuffer stringBuilder = new StringBuffer();
+
+        // GraphFlux 只适用于存储最后一个分片结果
+//        GraphFlux<String> stringGraphFlux = GraphFlux.of("BackgroundInvectigationNode",
+//                "searchResult",
+//                searchMerge,
+//                (chunkEnd) -> stringBuilder.append(chunkEnd).toString(),
+//                chunk -> {
+//                    stringBuilder.append(chunk);
+//                    return chunk;
+//                }
+//        );
 
         // 赋值出参
-        return Map.of("searchResult", stringGraphFlux);
+        return Map.of("searchResult", searchMerge);
     }
 
     private Mono<String> search(String optimizeQuery) {

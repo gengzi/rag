@@ -1,41 +1,36 @@
 package com.gengzi.rag.agent.deepresearch.node;
 
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.cloud.ai.graph.OverAllState;
+import com.alibaba.cloud.ai.graph.StateGraph;
 import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.rag.agent.deepresearch.config.NodeConfig;
+import com.gengzi.rag.agent.deepresearch.dto.Plan;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.deepresearch.util.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
-import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 
 /**
- * 用户意图识别节点
- * 用于判断用户是闲聊还是问答
+ * 信息节点
  */
-public class PlannerNode extends AbstractLlmNodeAction {
+public class InformationNode extends AbstractLlmNodeAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(PlannerNode.class);
+    private static final Logger logger = LoggerFactory.getLogger(InformationNode.class);
 
     private final DeepResearchConfig deepResearchConfig;
 
@@ -43,10 +38,14 @@ public class PlannerNode extends AbstractLlmNodeAction {
 
     private final int maxStepNum;
 
-    public PlannerNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder, int maxStepNum) {
+    private final BeanOutputConverter<Plan> converter;
+
+    public InformationNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder, int maxStepNum) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
         this.maxStepNum = maxStepNum;
+        this.converter = new BeanOutputConverter<>(Plan.class);
+
     }
 
     /**
@@ -59,38 +58,45 @@ public class PlannerNode extends AbstractLlmNodeAction {
         logger.info("coordinator node is running.");
         // 获取入参
         String query = StateUtil.getQuery(state);
-        String searchResult = StateUtil.getSearchResult(state);
-        String ragResult = StateUtil.getRagResult(state);
+        String plannerResult = StateUtil.getPlannerResult(state);
+        // 业务逻辑
+        // 解析响应结果，看是否能格式化为对象，如果能，判断的上下文是否充足
+        Plan plan;
+        try {
+            plan = converter.convert(plannerResult);
+            logger.info("plannerResult is a valid json:{}", plan);
+            // 判断上下文现在是否充足
+            HashMap<String, Object> result = new HashMap<>();
+            boolean hasEnoughContext = plan.isHasEnoughContext();
+            if (hasEnoughContext) {
+              // 充足，下一步执行报告生成
+                result.put(getNodeConfig().getNextNodeKey(), "ReporterNode");
+                return result;
+            }
 
-        List<String> optimizeQueries = StateUtil.getOptimizeQueries(state);
-        ArrayList<Message> messages = new ArrayList<>();
-        // 获取系统提示词
-        SystemMessage systemMessage = new SystemMessage(bulidPromptTemplate().getTemplate());
-        messages.add(systemMessage);
-        // 获取原始和扩展后的问题
-        String userQuery = "问题: %s 扩展后的问题: %s";
-        UserMessage userMessageByQuery = new UserMessage(String.format(userQuery, query, optimizeQueries.stream().collect(Collectors.joining("\n"))));
-        messages.add(userMessageByQuery);
-        // 获取背景调查获取的内容
-        UserMessage userMessageBySearchResult = new UserMessage("背景检索：" + searchResult);
-        messages.add(userMessageBySearchResult);
-        // 获取rag查询获取的内容
-        UserMessage userMessageByRagContent = new UserMessage("本地知识库：" + ragResult);
-        messages.add(userMessageByRagContent);
-        // 获取人类反馈（如果有）
-        String feedbackContent = state.value("feedbackContent", "").toString();
-        if (StrUtil.isNotBlank(feedbackContent)) {
-            UserMessage userMessageByFeedbackContent = new UserMessage("人类反馈：" + feedbackContent);
-            messages.add(userMessageByFeedbackContent);
+
+        } catch (Exception e) {
+            logger.error("plannerResult is not a valid json");
+            // 解析异常，
+            HashMap<String, Object> result = new HashMap<>();
+            // 如果不能，跳转为plannernode，进行迭代，并且记录迭代次数，超过迭代次数，就提示用户并结束
+            if (StateUtil.getPlanIterations(state) > maxStepNum) {
+                String nextNode = StateGraph.END;
+                result.put(getNodeConfig().getNextNodeKey(), nextNode);
+                return result;
+            } else {
+                String nextNode = "plannerNode";
+                result.put(getNodeConfig().getNextNodeKey(), nextNode);
+                result.put("planIterations", StateUtil.getPlanIterations(state) + 1);
+                return result;
+            }
         }
-        // 调用llm
-        Flux<ChatResponse> chatResponseFlux = bulidChatClient()
-                .prompt()
-                .messages(messages)
-                .stream()
-                .chatResponse();
+        HashMap<String, Object> result = new HashMap<>();
+        result.put(getNodeConfig().getNextNodeKey(), "ParalleExecutorNode");
+        result.put("planIterations", StateUtil.getPlanIterations(state) + 1);
+        result.put("currentPlan", plan);
         // 赋值出参
-        return Map.of("plannerResult", chatResponseFlux);
+        return result;
     }
 
     /**

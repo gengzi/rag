@@ -2,28 +2,30 @@ package com.gengzi.rag.agent.deepresearch.node;
 
 import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.cloud.ai.graph.OverAllState;
+import com.alibaba.cloud.ai.graph.streaming.GraphFlux;
 import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.rag.agent.deepresearch.config.NodeConfig;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.deepresearch.util.StateUtil;
+import com.gengzi.rag.search.service.ChatRagService;
+import com.gengzi.request.ChatReq;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.alibaba.cloud.ai.graph.StateGraph.END;
+import java.util.stream.Collectors;
 
 
 /**
@@ -38,9 +40,12 @@ public class RagNode extends AbstractLlmNodeAction {
 
     private final OpenAiChatModel.Builder openAiChatModelBuilder;
 
-    public RagNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
+    private final ChatRagService chatRagService;
+
+    public RagNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder, ChatRagService chatRagService) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
+        this.chatRagService = chatRagService;
     }
 
     /**
@@ -51,9 +56,31 @@ public class RagNode extends AbstractLlmNodeAction {
     @Override
     public Map<String, Object> apply(OverAllState state) throws Exception {
         logger.info("coordinator node is running.");
+        String userId = StateUtil.getUserId(state);
+        List<String> optimizeQueries = StateUtil.getOptimizeQueries(state);
+        String conversationId = StateUtil.getConversationId(state);
+        // 业务逻辑，查询rag信息
+
+        List<Flux<ChatResponse>> collect = optimizeQueries.stream().map(q -> {
+            ChatReq chatReq = new ChatReq();
+            chatReq.setQuery(q);
+            chatReq.setConversationId(conversationId);
+            return chatRagService.chatRagByAgent(chatReq, userId);
+        }).collect(Collectors.toList());
+        Flux<ChatResponse> flux = Flux.mergeSequential(collect).subscribeOn(Schedulers.boundedElastic());
+//        StringBuffer stringBuilder = new StringBuffer();
+//        GraphFlux<String> stringGraphFlux = GraphFlux.of("RagNode",
+//                "ragResult",
+//                flux,
+//                (chunkEnd) -> stringBuilder.append(chunkEnd).toString(),
+//                chunk -> {
+//                    stringBuilder.append(chunk);
+//                    return chunk;
+//                }
+//        );
 
         // 赋值出参
-        return Map.of();
+        return Map.of("ragResult", flux);
     }
 
     /**
@@ -66,11 +93,7 @@ public class RagNode extends AbstractLlmNodeAction {
                         .model(getNodeConfig().getModel())
                         .build()
         ).build();
-        return ChatClient.builder(openAiChatModel)
-                // 禁用内部工具执行 否则会自动执行工具调用，无法获取到是否需要调用工具
-                .defaultOptions(ToolCallingChatOptions.builder()
-                        .internalToolExecutionEnabled(false)
-                        .build()).build();
+        return ChatClient.builder(openAiChatModel).build();
     }
 
     private NodeConfig getNodeConfig() {

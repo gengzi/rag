@@ -8,6 +8,7 @@ import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.response.AgentGraphRes;
 import com.gengzi.response.ChatMessageResponse;
 import com.gengzi.response.LlmTextRes;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,22 @@ public class DeepResearchGraphProcess {
 
     @Autowired
     private DeepResearchConfig deepResearchConfig;
+
+    @NotNull
+    private static ChatMessageResponse errorComplete() {
+        LlmTextRes llmTextRes = new LlmTextRes();
+        llmTextRes.setAnswer("# 执行异常，请稍后再试.... ");
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofLlm(llmTextRes);
+        return chatMessageResponse;
+    }
+
+    @NotNull
+    private static ChatMessageResponse complete() {
+        LlmTextRes llmTextRes = new LlmTextRes();
+        llmTextRes.setAnswer("# 任务已完成，请查看详细报告 ");
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofLlm(llmTextRes);
+        return chatMessageResponse;
+    }
 
     public String createSession(String conversationId) {
         return String.format("%s_%s", conversationId, IdUtil.simpleUUID());
@@ -58,18 +75,34 @@ public class DeepResearchGraphProcess {
                                                     case "BackgroundInvectigationNode":
                                                         backgroundInvectigationNodeOutput(nodeOutput, threadId, sink);
                                                         break;
-
+                                                    case "RagNode":
+                                                        ragNodeOutput(nodeOutput, threadId, sink);
+                                                        break;
+                                                    case "PlannerNode":
+                                                        plannerNodeOutput(nodeOutput, threadId, sink);
+                                                        break;
+                                                    case "ParalleExecutorNode":
+                                                        paralleExecutorNode(nodeOutput, threadId, sink);
+                                                        break;
+                                                    case "ReporterNode":
+                                                        reporterNodeOutput(nodeOutput, threadId, sink);
+                                                        break;
                                                 }
-
                                             }
                                     )
                                     .doOnError(e -> {
                                         logger.error("Error occurred during streaming", e);
-                                        sink.tryEmitError(e);
+                                        // 在异常处中止流
+                                        ChatMessageResponse chatMessageResponse = errorComplete();
+                                        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
+                                        sink.tryEmitComplete();
+
+//                                        sink.tryEmitError(e);
                                     })
                                     .doOnComplete(
                                             () -> {
                                                 logger.info("Streaming completed");
+                                                sink.tryEmitNext(ServerSentEvent.builder(complete()).build());
                                                 sink.tryEmitComplete();
                                             }
                                     )
@@ -79,6 +112,62 @@ public class DeepResearchGraphProcess {
                 .subscribe();
 
 
+    }
+
+    private void reporterNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
+        AgentGraphRes agentGraphRes = new AgentGraphRes();
+        if (nodeOutput instanceof StreamingOutput streamingOutput) {
+            logger.info("rag agent streamingOutput = {}", streamingOutput);
+            agentGraphRes.setContent(streamingOutput.chunk());
+        }
+        agentGraphRes.setNodeName(nodeOutput.node());
+        // nodename 对应的标题名称
+        agentGraphRes.setDisplayTitle(deepResearchConfig.getDeepresearchNodes().get(nodeOutput.node()).getDisplayTitle());
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofAgent(agentGraphRes);
+        chatMessageResponse.setThreadId(threadId);
+        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
+    }
+
+    private void paralleExecutorNode(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
+        AgentGraphRes agentGraphRes = new AgentGraphRes();
+        if (nodeOutput instanceof StreamingOutput streamingOutput) {
+            logger.info("rag agent streamingOutput = {}", streamingOutput);
+            agentGraphRes.setContent(streamingOutput.chunk());
+        }
+        agentGraphRes.setNodeName(nodeOutput.node());
+        // nodename 对应的标题名称
+        agentGraphRes.setDisplayTitle(deepResearchConfig.getDeepresearchNodes().get(nodeOutput.node()).getDisplayTitle());
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofAgent(agentGraphRes);
+        chatMessageResponse.setThreadId(threadId);
+        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
+    }
+
+    private void plannerNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
+        AgentGraphRes agentGraphRes = new AgentGraphRes();
+        if (nodeOutput instanceof StreamingOutput streamingOutput) {
+            logger.info("rag agent streamingOutput = {}", streamingOutput);
+            agentGraphRes.setContent(streamingOutput.chunk());
+        }
+        agentGraphRes.setNodeName(nodeOutput.node());
+        // nodename 对应的标题名称
+        agentGraphRes.setDisplayTitle(deepResearchConfig.getDeepresearchNodes().get(nodeOutput.node()).getDisplayTitle());
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofAgent(agentGraphRes);
+        chatMessageResponse.setThreadId(threadId);
+        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
+    }
+
+    private void ragNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
+        AgentGraphRes agentGraphRes = new AgentGraphRes();
+        if (nodeOutput instanceof StreamingOutput streamingOutput) {
+            logger.info("rag agent streamingOutput = {}", streamingOutput);
+            agentGraphRes.setContent(streamingOutput.chunk());
+        }
+        agentGraphRes.setNodeName(nodeOutput.node());
+        // nodename 对应的标题名称
+        agentGraphRes.setDisplayTitle(deepResearchConfig.getDeepresearchNodes().get(nodeOutput.node()).getDisplayTitle());
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofAgent(agentGraphRes);
+        chatMessageResponse.setThreadId(threadId);
+        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
     }
 
     private void backgroundInvectigationNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {

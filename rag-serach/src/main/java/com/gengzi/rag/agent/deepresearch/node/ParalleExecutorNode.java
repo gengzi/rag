@@ -1,19 +1,15 @@
 package com.gengzi.rag.agent.deepresearch.node;
 
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.rag.agent.deepresearch.config.NodeConfig;
+import com.gengzi.rag.agent.deepresearch.dto.Plan;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.deepresearch.util.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatModel;
@@ -30,23 +26,20 @@ import java.util.stream.Collectors;
 
 
 /**
- * 用户意图识别节点
- * 用于判断用户是闲聊还是问答
+ * 并行节点，用于执行并行任务
  */
-public class PlannerNode extends AbstractLlmNodeAction {
+public class ParalleExecutorNode extends AbstractLlmNodeAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(PlannerNode.class);
+    private static final Logger logger = LoggerFactory.getLogger(ParalleExecutorNode.class);
 
     private final DeepResearchConfig deepResearchConfig;
 
     private final OpenAiChatModel.Builder openAiChatModelBuilder;
 
-    private final int maxStepNum;
 
-    public PlannerNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder, int maxStepNum) {
+    public ParalleExecutorNode(DeepResearchConfig deepResearchConfig, OpenAiChatModel.Builder openAiChatModelBuilder) {
         this.deepResearchConfig = deepResearchConfig;
         this.openAiChatModelBuilder = openAiChatModelBuilder;
-        this.maxStepNum = maxStepNum;
     }
 
     /**
@@ -59,38 +52,20 @@ public class PlannerNode extends AbstractLlmNodeAction {
         logger.info("coordinator node is running.");
         // 获取入参
         String query = StateUtil.getQuery(state);
-        String searchResult = StateUtil.getSearchResult(state);
-        String ragResult = StateUtil.getRagResult(state);
+        Plan plan = StateUtil.getPlan(state);
+        // 根据 setp 并行执行检索任务
 
-        List<String> optimizeQueries = StateUtil.getOptimizeQueries(state);
-        ArrayList<Message> messages = new ArrayList<>();
-        // 获取系统提示词
-        SystemMessage systemMessage = new SystemMessage(bulidPromptTemplate().getTemplate());
-        messages.add(systemMessage);
-        // 获取原始和扩展后的问题
-        String userQuery = "问题: %s 扩展后的问题: %s";
-        UserMessage userMessageByQuery = new UserMessage(String.format(userQuery, query, optimizeQueries.stream().collect(Collectors.joining("\n"))));
-        messages.add(userMessageByQuery);
-        // 获取背景调查获取的内容
-        UserMessage userMessageBySearchResult = new UserMessage("背景检索：" + searchResult);
-        messages.add(userMessageBySearchResult);
-        // 获取rag查询获取的内容
-        UserMessage userMessageByRagContent = new UserMessage("本地知识库：" + ragResult);
-        messages.add(userMessageByRagContent);
-        // 获取人类反馈（如果有）
-        String feedbackContent = state.value("feedbackContent", "").toString();
-        if (StrUtil.isNotBlank(feedbackContent)) {
-            UserMessage userMessageByFeedbackContent = new UserMessage("人类反馈：" + feedbackContent);
-            messages.add(userMessageByFeedbackContent);
-        }
-        // 调用llm
-        Flux<ChatResponse> chatResponseFlux = bulidChatClient()
-                .prompt()
-                .messages(messages)
-                .stream()
-                .chatResponse();
+        List<Plan.Step> steps = plan.getSteps();
+        List<Flux<ChatResponse>> chatResponses = steps.parallelStream().filter(Plan.Step::isNeedWebSearch).map(step -> {
+            Flux<ChatResponse> chatResponseFlux = bulidChatClient().prompt()
+                    .system(bulidPromptTemplate().getTemplate())
+                    .user(step.getTitle() + "\n" + step.getDescription())
+                    .stream().chatResponse();
+            return chatResponseFlux;
+        }).collect(Collectors.toList());
+        Flux<ChatResponse> merge = Flux.mergeSequential(chatResponses);
         // 赋值出参
-        return Map.of("plannerResult", chatResponseFlux);
+        return Map.of("paralleSearchResult", merge);
     }
 
     /**
@@ -121,7 +96,7 @@ public class PlannerNode extends AbstractLlmNodeAction {
             return PromptTemplate.builder()
                     .template(ResourceUtil.loadFileContent(getNodeConfig().getPrompts().get(0)
                                     .replace("{{ CURRENT_TIME }}", LocalDateTime.now().toString()))
-                            .replace("{{ max_step_num }}", maxStepNum + ""))
+                            .replace("{{ locale }}", "中国"))
                     .build();
         }
         return null;

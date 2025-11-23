@@ -965,7 +965,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 value={input}
                 onChange={handleInputChange}
                 disabled={isLoading || loadingChat}
-                className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag || showDeepResearchTag ? 'pl-24' : 'pl-4'}`}
+                className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 ${showPptTag || showDeepResearchTag ? 'pl-32' : 'pl-4'}`}
               />
               {showPptTag && (
                 <button

@@ -973,7 +973,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                   onClick={() => setShowPptTag(!showPptTag)}
                   className="absolute left-1 top-1/2 transform -translate-y-1/2 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center hover:bg-primary/90 transition-colors"
                 >
-                  aippt
+                  PPT生成工具
                   <span className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors">×</span>
                 </button>
               )}
@@ -1013,7 +1013,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
                 className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
               >
-                PPTGenerate
+                PPT生成工具
               </Button>
               <Button
                 type="button"

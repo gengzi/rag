@@ -112,11 +112,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       const data = await getChatHistory({ id, limit, before: currentBefore });
       console.log('API返回数据:', JSON.stringify(data));
 
-      // 更新before参数用于下一次加载，使用nextCursor作为before参数
+      // 更新before参数用于下一次加载，使用before作为下一次查询的cursor
       let hasMoreData = true;
       if (data) {
-        if (data.nextCursor) {
-          setBefore(data.nextCursor);
+        if (data.before) {
+          setBefore(data.before);
         } else {
           hasMoreData = false;
         }
@@ -167,7 +167,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 const answer = contentItem.content?.answer || '';
                 const messageContent = typeof answer === 'string' ? answer : JSON.stringify(answer);
                 const references = contentItem.content?.reference?.reference || [];
-                
+
                 // 创建LLM类型节点
                 const llmNode: ProcessNode = {
                   type: 'llm',
@@ -320,11 +320,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         const data = await getChatHistory({ id, limit, before: currentBefore });
         console.log('API返回数据:', JSON.stringify(data));
 
-        // 更新before参数用于下一次加载，使用nextCursor作为before参数
+        // 更新before参数用于下一次加载，使用before作为下一次查询的cursor
         let hasMoreData = true;
         if (data) {
-          if (data.nextCursor) {
-            setBefore(data.nextCursor);
+          if (data.before) {
+            setBefore(data.before);
           } else {
             hasMoreData = false;
           }
@@ -495,17 +495,17 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   }, [loadingChat, hasMore, fetchChatHistory]);
 
   /**
-   * 自动滚动到底部效果
-   * 只在聊天初始化完成后自动滚动到底部
-   */
-  useEffect(() => {
-    // 只有在初始加载完成且不是加载更多历史记录时才滚动到底部
-    if (messages.length > 0 && !loadingChat) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  }, []); // 空依赖数组，只在组件挂载后执行一次
+     * 自动滚动到底部效果
+     * 只在聊天初始化完成后自动滚动到底部
+     */
+    useEffect(() => {
+      // 只有在初始加载完成且不是加载更多历史记录时才滚动到底部
+      if (messages.length > 0 && !loadingChat) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }, []); // 空依赖数组，只在组件挂载后执行一次
 
   /**
    * 处理输入框内容变化
@@ -547,13 +547,12 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         query: inputText,
         conversationId: id,
         threadId: threadId,
-        agentId: currentPptTag ? "1" : currentDeepResearchTag ? "DeepResearch" : ""
+        agentId: currentPptTag ? "PPTGenerate" : currentDeepResearchTag ? "DeepResearch" : ""
       };
 
-      // 清空输入框，并在准备好请求参数后重置PPT标签状态
-      // 深度检索标签只有在点击移除按钮时才移除
+      // 清空输入框
+      // 根据需求，PPT标签和深度检索标签现在都只有在用户点击移除按钮时才移除
       setInput('');
-      setShowPptTag(false);
       
       // 确保深度检索标签不会被自动移除
       // 记录当前状态用于调试
@@ -862,7 +861,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="min-h-[calc(100vh-4rem)] flex flex-col space-y-6">
         {/* 页面头部 */}
         <div className="bg-card rounded-lg shadow-sm p-4 sm:p-6">
           <div className="flex items-center justify-between">
@@ -881,7 +880,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         </div>
 
         {/* 聊天消息区域 */}
-        <div ref={messagesContainerRef} className="max-h-[80vh] overflow-y-auto">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
           {/* 加载更多历史记录指示器 */}
           {loadingChat && messages.length > 0 && (
             <div className="flex justify-center py-4 animate-fadeIn">
@@ -1014,16 +1013,16 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
                 className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
               >
-                AiPPT-工具
+                PPTGenerate
               </Button>
               <Button
                 type="button"
                 onClick={() => setShowDeepResearchTag(true)}
-                  disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
-                  className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
-                >
-                  深度检索
-                </Button>
+                disabled={showPptTag || showDeepResearchTag || isLoading || loadingChat}
+                className="h-7 px-3 text-xs bg-secondary hover:bg-secondary/90 text-black"
+              >
+                深度检索
+              </Button>
             </div>
           </div>
         </div>

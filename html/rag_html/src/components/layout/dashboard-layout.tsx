@@ -162,7 +162,7 @@ export default function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:pl-64">
-        <main className="min-h-screen py-6 px-4 sm:px-6 lg:px-8">
+        <main className="py-6 px-4 sm:px-6 lg:px-8">
           <Breadcrumb />
           {children}
         </main>

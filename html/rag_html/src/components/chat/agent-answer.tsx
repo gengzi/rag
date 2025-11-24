@@ -130,7 +130,7 @@ const Code = ({ className, children, ...props }: any) => {
  * reference: 可选的引用信息
  */
 interface ProcessNode {
-  type: 'agent' | 'llm';
+  type: 'agent' | 'llm' | 'web';
   id: string;
   name: string;
   status: 'active' | 'completed' | 'pending';
@@ -229,7 +229,36 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
     };
 
     // 根据节点类型选择不同的渲染方式
-    if (node.type === 'agent') {
+    if (node.type === 'web') {
+      // 渲染web类型节点
+      return (
+          <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">
+            <div className="flex gap-4 items-start">
+              {/* 节点图标/状态 - 显示Globe图标 */}
+              <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${statusColors[node.status]}`}>
+                <Globe className="h-5 w-5" />
+              </div>
+
+              {/* 节点内容 */}
+              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow w-full transition-all duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-medium text-sm">{node.displayTitle || '网页内容'}</h4>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors['completed']}`}>
+                    已完成
+                  </span>
+                </div>
+                
+                {/* 网页内容渲染 */}
+                {node.content && (
+                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words overflow-wrap:anywhere word-break:break-word animate-fadeIn">
+                      <div dangerouslySetInnerHTML={{ __html: node.content }} />
+                    </div>
+                )}
+              </div>
+            </div>
+          </div>
+      );
+    } else if (node.type === 'agent') {
       // 渲染agent类型节点
       return (
           <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">
@@ -252,7 +281,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                     {node.displayTitle || node.name}
                   </h4>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
-                  {node.status === 'active' ? '执行中' :
+                  {node.status === 'active' ? '处理中' :
                       node.status === 'completed' ? '已完成' : '待执行'}
                 </span>
                 </button>

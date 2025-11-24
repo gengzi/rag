@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Send, User, Bot, ArrowLeft, MessageSquare, Loader2 } from "lucide-react";
+import { Send, User, Bot, ArrowLeft, MessageSquare, Loader2, Globe } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { useToast } from "@/components/ui/use-toast";
 import Answer from "@/components/chat/answer";
@@ -25,7 +25,7 @@ interface Citation {
  * 流程节点接口定义
  */
 interface ProcessNode {
-  type: 'agent' | 'llm';
+  type: 'agent' | 'llm' | 'web';
   id: string;
   name: string;
   status: 'active' | 'completed' | 'pending';
@@ -58,6 +58,12 @@ interface ProcessFlow {
 /**
  * 聊天消息接口定义
  */
+interface WebContent {
+  messageType: 'web';
+  content: string;
+  nodeName?: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -67,7 +73,49 @@ interface Message {
   ragReference?: any;
   processFlow?: ProcessFlow;
   isAgent?: boolean;
+  webContent?: WebContent;
 }
+
+/**
+ * 安全过滤HTML、JavaScript和CSS内容
+ * 移除潜在的危险标签和脚本
+ */
+const sanitizeWebContent = (content: string): string => {
+  if (!content) return '';
+  
+  try {
+    // 移除script标签及其内容
+    let sanitized = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    
+    // 移除iframe标签及其内容
+    sanitized = sanitized.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '');
+    
+    // 移除on*事件属性
+    sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"]*["']/gi, '');
+    
+    // 移除javascript: URL
+    sanitized = sanitized.replace(/javascript:\s*/gi, '');
+    
+    // 移除潜在危险的meta标签
+    sanitized = sanitized.replace(/<meta[^>]*http-equiv=["']refresh["'][^>]*>/gi, '');
+    
+    return sanitized;
+  } catch (error) {
+    console.error('Web内容安全过滤失败:', error);
+    return content; // 过滤失败时返回原始内容
+  }
+};
+
+// 渲染web内容
+const renderWebContent = (content: string) => {
+  return (
+    <div 
+      className="mt-4 p-4 border border-input rounded-lg bg-muted/50 overflow-auto"
+      style={{ maxHeight: '500px' }}
+      dangerouslySetInnerHTML={{ __html: sanitizeWebContent(content) }}
+    />
+  );
+};
 
 export default function NewChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -153,16 +201,16 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       messagesToProcess.forEach((msg: any) => {
           if (msg.content && Array.isArray(msg.content)) {
             // 为每条消息创建一个完整的processFlow
-            const processNodes: ProcessNode[] = [];
+            let processNodes: ProcessNode[] = [];
             const processEdges: Array<{ from: string; to: string }> = [];
             
             // 处理每个消息的content数组，构建完整的流程节点列表
             msg.content.forEach((contentItem: any, index: number) => {
               // 提取并更新threadId（取最后一个值）
               if (contentItem.threadId !== undefined) {
-                latestThreadId = contentItem.threadId || '';
-              } 
-              if (contentItem.messageType === 'text') {
+                  latestThreadId = contentItem.threadId || '';
+                }
+                if (contentItem.messageType === 'text') {
                 // 文本类型节点 (LLM输出)
                 const answer = contentItem.content?.answer || '';
                 const messageContent = typeof answer === 'string' ? answer : JSON.stringify(answer);
@@ -202,6 +250,23 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 };
                 
                 processNodes.push(agentNode);
+              } else if (contentItem.messageType === 'web') {
+                // Web类型节点
+                const webData = contentItem.content || {};
+                const nodeName = webData.nodeName || `web-${index}`;
+                const webContent = webData.content || '';
+                
+                // 创建Web类型节点
+                const webNode: ProcessNode = {
+                  type: 'web',
+                  id: nodeName,
+                  name: nodeName,
+                  status: 'completed',
+                  content: typeof webContent === 'string' ? webContent : JSON.stringify(webContent),
+                  order: index
+                };
+                
+                processNodes.push(webNode);
               }
             });
             
@@ -224,7 +289,31 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             const messageContent = firstTextContent?.content?.answer || '';
             const ragReference = firstTextContent?.content?.reference;
             
-            // 创建消息对象
+            // 检查是否有web内容
+            let webContentForMessage: WebContent | undefined = undefined;
+            const webContentItem = msg.content.find((item: any) => item.messageType === 'web');
+            if (webContentItem) {
+              // 适配用户提供的数据格式
+              if (typeof webContentItem.content === 'object' && webContentItem.content !== null) {
+                // 情况1: content是对象，可能直接包含HTML内容
+                webContentForMessage = {
+                  messageType: 'web' as const,
+                  content: webContentItem.content.content || JSON.stringify(webContentItem.content),
+                  nodeName: webContentItem.content.nodeName || webContentItem.nodeName || 'web-content'
+                };
+              } else if (typeof webContentItem.content === 'string') {
+                // 情况2: content是字符串
+                webContentForMessage = {
+                  messageType: 'web' as const,
+                  content: webContentItem.content,
+                  nodeName: webContentItem.nodeName || 'web-content'
+                };
+              }
+              
+              // 添加调试日志
+              console.log('Web内容处理:', { original: webContentItem, processed: webContentForMessage });
+            }
+            
             formattedMessages.push({
               id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               content: typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent),
@@ -233,7 +322,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
               citations: firstTextContent?.content?.reference?.reference || [],
               ragReference: ragReference,
               processFlow: processFlow,
-              isAgent: msg.content.some((item: any) => item.messageType === 'agent')
+              isAgent: msg.content.some((item: any) => item.messageType === 'agent'),
+              webContent: webContentForMessage
             });
           } else if (msg.content && typeof msg.content === 'string') {
             // 处理简单文本消息
@@ -354,17 +444,105 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         
         const formattedMessages: Message[] = [];
         let latestThreadId = '';
+        let textContentBuffer = '';
+        let lastMessageType: string = '';
+        let hasWebContent = false;
+        let webContent = '';
+        let newAssistantMessageId = '';
         
         // 处理消息格式化...（与fetchChatHistory相同的逻辑）
         messagesToProcess.forEach((msg: any) => {
           if (msg.content && Array.isArray(msg.content)) {
-            const processNodes: ProcessNode[] = [];
+            let processNodes: ProcessNode[] = [];
             const processEdges: Array<{ from: string; to: string }> = [];
             
             msg.content.forEach((contentItem: any, index: number) => {
               if (contentItem.threadId !== undefined) {
                 latestThreadId = contentItem.threadId || '';
               }
+              
+              // 处理web类型消息
+              if (contentItem.messageType === 'web') {
+                // Web类型消息处理
+                // 清空文本缓冲区
+                textContentBuffer = '';
+
+                const webData = contentItem.content || {};
+                const webContentValue = webData.web内容 || '';
+                const nodeName = webData.nodeName || 'web-output';
+                
+                // 安全过滤web内容
+                const sanitizedWebContent = sanitizeWebContent(webContentValue);
+                
+                // 创建新的web节点
+                // 更新之前节点状态为已完成
+                if (processNodes.length > 0) {
+                  processNodes = processNodes.map(node => ({
+                    ...node,
+                    status: 'completed'
+                  }));
+                }
+
+                // 创建新节点
+                const webNode: ProcessNode = {
+                  type: 'web',
+                  id: nodeName,
+                  name: nodeName,
+                  displayTitle: '网页内容',
+                  status: 'active',
+                  content: sanitizedWebContent,
+                  order: processNodes.length
+                };
+
+                // 添加新节点
+                processNodes.push(webNode);
+
+                // 添加边（如果有多个节点）
+                if (processNodes.length > 1) {
+                  const lastNodeIndex = processNodes.length - 1;
+                  processEdges.push({
+                    from: processNodes[lastNodeIndex - 1].id,
+                    to: processNodes[lastNodeIndex].id
+                  });
+                }
+
+                // 更新最后消息类型
+                lastMessageType = 'web';
+                hasWebContent = true;
+                webContent = sanitizedWebContent;
+                
+                // 更新助手消息，包含webContent字段
+                const assistantMessage: Message = {
+                  id: newAssistantMessageId,
+                  content: '', // 留空，避免重复显示
+                  role: 'assistant' as const,
+                  createdAt: new Date(),
+                  processFlow: {
+                    nodes: processNodes,
+                    edges: processEdges
+                  },
+                  webContent: {
+                    messageType: 'web',
+                    content: sanitizedWebContent,
+                    nodeName: nodeName
+                  }
+                };
+                
+                // 检查消息是否已存在
+                setMessages(prev => {
+                  const existingIndex = prev.findIndex(msg => msg.id === newAssistantMessageId);
+                  if (existingIndex >= 0) {
+                    // 更新现有消息
+                    const updatedMessages = [...prev];
+                    updatedMessages[existingIndex] = assistantMessage;
+                    return updatedMessages;
+                  } else {
+                    // 添加新消息
+                    return [...prev, assistantMessage];
+                  }
+                });
+              } 
+              
               if (contentItem.messageType === 'text') {
                 const answer = contentItem.content?.answer || '';
                 const messageContent = typeof answer === 'string' ? answer : JSON.stringify(answer);
@@ -401,7 +579,23 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                 };
                 
                 processNodes.push(agentNode);
-              }
+              } else if (contentItem.messageType === 'web') {
+                const webData = contentItem.content || {};
+                const webContent = webData.content || webData.web内容 || ''; // 同时支持content和web内容属性
+                const nodeName = webData.nodeName || `web-${index}`;
+                
+                const webNode: ProcessNode = {
+                  type: 'web',
+                  id: nodeName,
+                  name: nodeName,
+                  displayTitle: '网页内容',
+                  status: 'completed',
+                  content: webContent,
+                  order: index
+                };
+                
+                processNodes.push(webNode);
+                }
             });
             
             for (let i = 1; i < processNodes.length; i++) {
@@ -587,10 +781,12 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       const newAssistantMessageId = `msg-${Date.now()}-assistant-${Math.random().toString(36).substr(2, 9)}`;
       setAssistantMessageId(newAssistantMessageId);
       let textContentBuffer = ''; // 用于累积文本内容
-      let processNodes: ProcessNode[] = []; // 用于存储所有流程节点（包括agent和llm类型）
+      let processNodes: ProcessNode[] = []; // 用于存储所有流程节点（包括agent、llm和web类型）
       let processEdges: Array<{ from: string; to: string }> = [];
-      let lastMessageType: 'text' | 'agent' | null = null; // 上一条消息类型
+      let lastMessageType: 'text' | 'agent' | 'web' | null = null; // 上一条消息类型
       let lastNodeName: string | null = null; // 上一个节点名称
+      let hasWebContent = false;
+      let webContent = '';
 
       // 处理流式响应
       while (true) {
@@ -822,6 +1018,14 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
           edges: processEdges
         }
       };
+      
+      // 如果有web内容，添加到消息中
+      if (hasWebContent && webContent) {
+        finalAssistantMessage.webContent = {
+          messageType: 'web',
+          content: webContent
+        };
+      }
 
       setMessages(prev => {
         const existingIndex = prev.findIndex(msg => msg.id === newAssistantMessageId);
@@ -917,8 +1121,22 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                     </div>
                     <div className="ml-3 max-w-[85%] w-full">
                       <div className="bg-card rounded-lg shadow-sm p-4 hover:bg-card/95 transition-all duration-200 word-break:break-word overflow-wrap:anywhere">
-                        {message.processFlow ? (
-                          <AgentAnswer processFlow={message.processFlow} content={message.content} citations={message.citations} ragReference={message.ragReference} />
+                        {message.webContent && message.webContent.messageType === 'web' ? (
+                          <>
+                            {message.content && (
+                              <div className="mb-4">
+                                <Answer content={message.content} citations={message.citations} ragReference={message.ragReference} />
+                              </div>
+                            )}
+                            {renderWebContent(message.webContent.content)}
+                          </>
+                        ) : message.processFlow ? (
+                          <AgentAnswer 
+                            processFlow={message.processFlow as any} 
+                            content={message.content} 
+                            citations={message.citations} 
+                            ragReference={message.ragReference} 
+                          />
                         ) : (
                           <Answer content={message.content} citations={message.citations} ragReference={message.ragReference} />
                         )}

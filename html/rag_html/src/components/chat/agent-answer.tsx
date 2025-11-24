@@ -1,4 +1,13 @@
 import React, { useState, useRef } from 'react';
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Check, Copy } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Globe, ChevronDown, ChevronRight, File, Eye } from "lucide-react";
@@ -183,11 +192,13 @@ interface AgentAnswerProps {
  * 负责渲染代理回答内容和处理流程
  */
 const AgentAnswer: React.FC<AgentAnswerProps> = ({
-                                                   processFlow,
-                                                   content,
-                                                   citations,
-                                                   ragReference
-                                                 }) => {
+                                                    processFlow,
+                                                    content,
+                                                    citations,
+                                                    ragReference
+                                                  }) => {
+  // 添加状态来控制弹窗显示
+  const [selectedWebNode, setSelectedWebNode] = useState<ProcessNode | null>(null);
   // 用于存储每个节点的引用展开状态
   const [expandedRefs, setExpandedRefs] = useState<Record<string, boolean>>({});
   // 用于存储每个代理节点的展开状态，默认折叠
@@ -230,7 +241,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
 
     // 根据节点类型选择不同的渲染方式
     if (node.type === 'web') {
-      // 渲染web类型节点
+      // 渲染web类型节点 - 使用弹窗展示内容
       return (
           <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">
             <div className="flex gap-4 items-start">
@@ -243,17 +254,112 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
               <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex-grow w-full transition-all duration-300">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="font-medium text-sm">{node.displayTitle || '网页内容'}</h4>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors['completed']}`}>
-                    已完成
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
+                    {node.status === 'active' ? '执行中' :
+                     node.status === 'completed' ? '已完成' : '待执行'}
                   </span>
                 </div>
                 
-                {/* 网页内容渲染 */}
-                {node.content && (
-                    <div className="prose prose-sm max-w-none prose-h1:font-bold prose-h1:text-lg prose-h2:font-bold prose-h2:text-base prose-h3:font-bold prose-h3:text-sm prose-p:my-2 prose-li:my-1 prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-ol:pl-5 prose-ul:pl-5 prose-strong:font-bold break-words overflow-wrap:anywhere word-break:break-word animate-fadeIn">
-                      <div dangerouslySetInnerHTML={{ __html: node.content }} />
-                    </div>
-                )}
+                {/* 显示内容摘要和查看按钮 */}
+                <div className="mt-2">
+                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                    {node.content ? 
+                      `${node.content.replace(/<[^>]*>/g, '').substring(0, 100)}...` : 
+                      '暂无内容'}
+                  </p>
+                  <Dialog open={selectedWebNode?.id === node.id} onOpenChange={(open) => {
+                    if (open) {
+                      setSelectedWebNode(node);
+                    } else {
+                      setSelectedWebNode(null);
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-sm">
+                        查看完整内容
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 overflow-hidden">
+                      <DialogHeader className="p-6 border-b">
+                        <DialogTitle className="text-xl">
+                          {node.displayTitle || '网页内容'}
+                        </DialogTitle>
+                        <DialogDescription>
+                          点击右上角关闭按钮返回
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="p-1">
+                        {node.content && (
+                          <iframe 
+                            className="w-full min-h-[70vh] border-0" 
+                            title={`Web content - ${node.id}`}
+                            sandbox="allow-same-origin allow-scripts"
+                            srcDoc={`
+                              <!DOCTYPE html>
+                              <html lang="zh-CN">
+                              <head>
+                                <meta charset="UTF-8">
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                <title>网页内容</title>
+                                <style>
+                                  /* 基础样式重置 */
+                                  * {
+                                    box-sizing: border-box;
+                                    margin: 0;
+                                    padding: 0;
+                                  }
+                                  body {
+                                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                                    line-height: 1.6;
+                                    color: #333;
+                                    padding: 1rem;
+                                    background-color: #ffffff;
+                                  }
+                                  /* 安全处理可能的样式冲突 */
+                                  :where(h1, h2, h3, h4, h5, h6) {
+                                    margin-top: 1rem;
+                                    margin-bottom: 0.5rem;
+                                    line-height: 1.2;
+                                  }
+                                  :where(p) {
+                                    margin-bottom: 1rem;
+                                  }
+                                  :where(a) {
+                                    color: #0066cc;
+                                    text-decoration: none;
+                                  }
+                                  :where(a:hover) {
+                                    text-decoration: underline;
+                                  }
+                                  :where(img) {
+                                    max-width: 100%;
+                                    height: auto;
+                                  }
+                                  :where(pre, code) {
+                                    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+                                    background-color: #f6f8fa;
+                                    border-radius: 3px;
+                                  }
+                                  :where(pre) {
+                                    padding: 1rem;
+                                    overflow-x: auto;
+                                    margin-bottom: 1rem;
+                                  }
+                                  :where(code) {
+                                    padding: 0.2em 0.4em;
+                                </style>
+                              </head>
+                              <body>
+                                ${node.content}
+                              </body>
+                              </html>
+                            `}
+                          />
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </div>
           </div>
@@ -486,8 +592,9 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
         {/* 显示合并后的处理流程（包含agent节点和llm内容节点） */}
         {renderProcessNodes()}
 
-        {/* 研究中提示（当有节点且存在active节点时显示） */}
-        {processFlow && processFlow.nodes.some(node => node.status === 'active' && node.type !== 'llm') && (
+        {/* 研究中提示 - 仅在实时对话中显示（需要通过props传入isLiveChat标识） */}
+        {/* 目前保留但注释掉，等待添加isLiveChat属性后再启用 */}
+        {/* {processFlow && isLiveChat && processFlow.nodes.some(node => node.status === 'active' && node.type !== 'llm') && (
             <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md text-sm text-blue-700">
               <p className="font-medium flex items-center gap-2">
                 <Globe className="h-4 w-4" />
@@ -497,7 +604,7 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
                 正在分析结果，预计需要一些时间...
               </p>
             </div>
-        )}
+        )} */}
       </div>
   );
 };

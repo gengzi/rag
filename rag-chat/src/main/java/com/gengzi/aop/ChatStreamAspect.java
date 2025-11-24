@@ -189,6 +189,10 @@ public class ChatStreamAspect {
             return Objects.equals(agentA.getNodeName(), agentB.getNodeName());
         }
 
+        if (contentA instanceof WebViewRes agentA && contentB instanceof WebViewRes agentB) {
+            return Objects.equals(agentA.getNodeName(), agentB.getNodeName());
+        }
+
         return false; // 类型不同或无法合并
     }
 
@@ -206,6 +210,8 @@ public class ChatStreamAspect {
         } else if (targetContent instanceof AgentGraphRes targetAgent && sourceContent instanceof AgentGraphRes sourceAgent) {
             targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
             // 其他字段如 nodeName 应相同（由 canMerge 保证）
+        }else if(targetContent instanceof WebViewRes targetAgent && sourceContent instanceof WebViewRes sourceAgent){
+            targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
         }
     }
 

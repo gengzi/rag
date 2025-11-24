@@ -1,6 +1,7 @@
 package com.gengzi.service.impl;
 
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.graph.*;
 import com.alibaba.cloud.ai.graph.checkpoint.config.SaverConfig;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.RedisSaver;
@@ -55,11 +56,16 @@ public class DeepResearchServiceImpl implements DeepResearchService {
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuery());
         objectMap.put("conversationId", req.getConversationId());
-        objectMap.put("threadId", req.getThreadId());
         if (req instanceof AgentChatReq agentChatReq) {
             objectMap.put("userId", agentChatReq.getUserId());
         }
-        String threadId = deepResearchGraphProcess.createSession(req.getConversationId());
+        String threadId = req.getThreadId() ;
+        if(StrUtil.isNotBlank(req.getThreadId())){
+            objectMap.put("threadId", req.getThreadId());
+        }else{
+            objectMap.put("threadId", deepResearchGraphProcess.createSession(req.getConversationId()));
+            threadId = objectMap.get("threadId").toString();
+        }
         RunnableConfig runnableConfig = RunnableConfig.builder()
                 .addParallelNodeExecutor("RewriteAndMultiQueryNode", CustomThreadPool.createIoIntensivePool("deepresearch"))
                 .threadId(threadId).build();

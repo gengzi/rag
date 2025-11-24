@@ -12,10 +12,17 @@ public enum MessageType {
      */
     AGENT_RESPONSE("agent", "Agent 回复"),
 
+
+    /**
+     * web 视图
+     */
+    WEB_VIEW("web", "web视图"),
+
     /**
      * 用户输入的消息
      */
     USER_INPUT("user_input", "用户消息"),
+
 
     /**
      * 系统消息（如会话初始化、错误提示、权限通知等）
@@ -47,17 +54,6 @@ public enum MessageType {
         this.description = description;
     }
 
-    // Getter
-    public String getTypeCode() {
-        return typeCode;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    // ========== 工具方法 ==========
-
     /**
      * 根据 typeCode（如 "agent_response"）反查枚举
      * 用于从 JSON 或数据库还原类型
@@ -69,6 +65,17 @@ public enum MessageType {
             }
         }
         throw new IllegalArgumentException("Unknown MessageType code: " + code);
+    }
+
+    // Getter
+    public String getTypeCode() {
+        return typeCode;
+    }
+
+    // ========== 工具方法 ==========
+
+    public String getDescription() {
+        return description;
     }
 
     /**

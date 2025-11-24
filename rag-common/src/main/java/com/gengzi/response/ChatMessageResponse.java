@@ -55,5 +55,13 @@ public class ChatMessageResponse {
         return msg;
     }
 
+    // web 视图
+    public static ChatMessageResponse ofWebView(WebViewRes webViewRes) {
+        ChatMessageResponse msg = new ChatMessageResponse();
+        msg.messageType = MessageType.WEB_VIEW.getTypeCode();
+        msg.content = webViewRes;
+        return msg;
+    }
+
 
 }

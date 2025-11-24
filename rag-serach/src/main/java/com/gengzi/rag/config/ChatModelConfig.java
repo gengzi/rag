@@ -35,6 +35,7 @@ public class ChatModelConfig {
                 .defaultOptions(OpenAiChatOptions.builder()
                         .model(config.getModel())
                         .temperature(config.getTemperature())
+                        .internalToolExecutionEnabled(true)
                         .build())
                 .build();
     }

@@ -72,6 +72,11 @@ public class StateUtil {
         return ragResult.getText();
     }
 
+    public static String getReporterResult(OverAllState state) {
+        AssistantMessage ragResult = state.value("reporterResult", AssistantMessage.builder().build());
+        return ragResult.getText();
+    }
+
     public static String getUserId(OverAllState state) {
         return state.value("userId", "");
     }

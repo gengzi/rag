@@ -73,6 +73,7 @@ public class DeepResearchAgentGraph {
             keyStrategyHashMap.put("planMaxIterations", new ReplaceStrategy());
             keyStrategyHashMap.put("paralleSearchResult", new ReplaceStrategy());
             keyStrategyHashMap.put("reporterResult", new ReplaceStrategy());
+            keyStrategyHashMap.put("reporterWebResult", new ReplaceStrategy());
             return keyStrategyHashMap;
         };
 
@@ -86,7 +87,8 @@ public class DeepResearchAgentGraph {
                 .addNode("PlannerNode", node_async(new PlannerNode(deepResearchConfig, openAiChatModelBuilder, 3)))
                 .addNode("InformationNode", node_async(new InformationNode(deepResearchConfig, openAiChatModelBuilder, 3)))
                 .addNode("ParalleExecutorNode", node_async(new ParalleExecutorNode(deepResearchConfig, openAiChatModelBuilder)))
-                .addNode("ReporterNode", node_async(new ReporterNode(deepResearchConfig, openAiChatModelBuilder)));
+                .addNode("ReporterNode", node_async(new ReporterNode(deepResearchConfig, openAiChatModelBuilder)))
+                .addNode("ReporterWebNode", node_async(new ReporterWebNode(deepResearchConfig, openAiChatModelBuilder)));
 
 
         stateGraph.addEdge(START, "CoordinatorNode")
@@ -105,7 +107,8 @@ public class DeepResearchAgentGraph {
                         AsyncEdgeAction.edge_async(new InformationDispatcher(deepResearchConfig, "InformationNode")),
                         Map.of("PlannerNode", "PlannerNode", "ParalleExecutorNode", "ParalleExecutorNode", "ReporterNode", "ReporterNode", END, END))
                 .addEdge("ParalleExecutorNode","ReporterNode")
-                .addEdge("ReporterNode", END);
+                .addEdge("ReporterNode", "ReporterWebNode")
+                .addEdge("ReporterWebNode", END);
 
         GraphRepresentation graphRepresentation = stateGraph.getGraph(GraphRepresentation.Type.PLANTUML,
                 "workflow graph");

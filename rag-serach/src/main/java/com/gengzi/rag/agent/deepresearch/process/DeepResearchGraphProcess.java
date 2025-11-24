@@ -8,6 +8,7 @@ import com.gengzi.rag.agent.deepresearch.config.DeepResearchConfig;
 import com.gengzi.response.AgentGraphRes;
 import com.gengzi.response.ChatMessageResponse;
 import com.gengzi.response.LlmTextRes;
+import com.gengzi.response.WebViewRes;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +88,9 @@ public class DeepResearchGraphProcess {
                                                     case "ReporterNode":
                                                         reporterNodeOutput(nodeOutput, threadId, sink);
                                                         break;
+                                                    case "ReporterWebNode":
+                                                        reporterWebNodeOutput(nodeOutput, threadId, sink);
+                                                        break;
                                                 }
                                             }
                                     )
@@ -112,6 +116,19 @@ public class DeepResearchGraphProcess {
                 .subscribe();
 
 
+    }
+
+
+    private void reporterWebNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {
+        WebViewRes webViewRes = new WebViewRes();
+        if (nodeOutput instanceof StreamingOutput streamingOutput) {
+            logger.info("rag agent streamingOutput = {}", streamingOutput);
+            webViewRes.setContent(streamingOutput.chunk());
+        }
+        webViewRes.setNodeName(nodeOutput.node());
+        ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofWebView(webViewRes);
+        chatMessageResponse.setThreadId(threadId);
+        sink.tryEmitNext(ServerSentEvent.builder(chatMessageResponse).build());
     }
 
     private void reporterNodeOutput(NodeOutput nodeOutput, String threadId, Sinks.Many<ServerSentEvent<ChatMessageResponse>> sink) {

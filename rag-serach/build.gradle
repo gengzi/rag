@@ -78,6 +78,9 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-core:2.20.0"
     implementation "com.fasterxml.jackson.core:jackson-annotations:2.20"
 
+    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-agent-framework'
+    implementation("org.redisson:redisson-spring-boot-starter:3.52.0")
+
 }
 
 test {

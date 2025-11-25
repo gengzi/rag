@@ -59,27 +59,56 @@ export const useChatHistory = ({
       const formattedMessages = parseMessagesFromAPI(data);
       console.log('解析后的消息数量:', formattedMessages.length);
 
-      // 更新分页状态
-      if (data.before) {
-        console.log('更新before为:', data.before);
-        setBefore(data.before);
+      // 更新分页状态 - API返回的是nextCursor字段
+      const nextCursor = data.nextCursor || data.data?.nextCursor;
+      console.log('加载更多更新分页状态:', {
+        nextCursor,
+        before: data.before,
+        data,
+        messageCount: formattedMessages.length
+      }); // 调试日志
+
+      if (nextCursor !== null && nextCursor !== undefined && nextCursor !== '') {
+        console.log('加载更多更新before为:', nextCursor);
+        setBefore(nextCursor);
+        setHasMore(true);
       } else {
-        console.log('没有更多历史记录了');
+        console.log('加载更多完成，没有更多历史记录了');
         setHasMore(false);
       }
 
-      // 更新消息（加载更多模式）
-      onMessagesUpdate(formattedMessages, true);
-
-      // 保持滚动位置
+      // 保持滚动位置（在更新消息前记录）
       if (messagesContainerRef.current) {
         const currentScrollHeight = messagesContainerRef.current.scrollHeight;
+        const currentScrollTop = messagesContainerRef.current.scrollTop;
+
+        console.log('加载更多前的滚动位置:', {
+          scrollHeight: currentScrollHeight,
+          scrollTop: currentScrollTop
+        });
+
+        // 更新消息
+        onMessagesUpdate(formattedMessages, true);
+
+        // 在DOM更新后保持滚动位置
         setTimeout(() => {
           if (messagesContainerRef.current) {
             const newScrollHeight = messagesContainerRef.current.scrollHeight;
-            messagesContainerRef.current.scrollTop = newScrollHeight - currentScrollHeight;
+            // 计算新的滚动位置：原滚动位置 + 新增加的高度
+            const newScrollTop = newScrollHeight - currentScrollHeight;
+
+            console.log('加载更多后的滚动位置:', {
+              oldScrollHeight: currentScrollHeight,
+              newScrollHeight,
+              newScrollTop
+            });
+
+            messagesContainerRef.current.scrollTop = Math.max(0, newScrollTop);
           }
-        }, 0);
+        }, 50); // 增加延迟时间，确保DOM已更新
+      } else {
+        // 如果没有容器，直接更新消息
+        onMessagesUpdate(formattedMessages, true);
       }
 
     } catch (error) {
@@ -91,31 +120,50 @@ export const useChatHistory = ({
 
   // 滚动监听实现加载更多
   useEffect(() => {
+    console.log('设置滚动监听器', { hasMore, loadingChat }); // 调试日志
+
     const container = messagesContainerRef.current;
-    if (!container) return;
+    if (!container) {
+      console.log('容器不存在，跳过滚动监听设置');
+      return;
+    }
 
     let scrollTimeout: NodeJS.Timeout;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
 
+      console.log('滚动事件触发', {
+        scrollTop,
+        hasMore,
+        loadingChat,
+        nextCursor: before,
+        scrollHeight,
+        clientHeight
+      }); // 调试日志
+
       // 当滚动到顶部附近时触发加载更多
-      if (scrollTop <= 50 && !loadingChat && hasMore) {
+      if (scrollTop <= 20 && !loadingChat && hasMore) {
+        console.log('满足加载条件，准备加载更多'); // 调试日志
+
         // 防抖处理
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-          console.log('触发加载更多历史记录'); // 调试日志
+          console.log('执行加载更多历史记录'); // 调试日志
           loadMoreHistory();
-        }, 300);
+        }, 300); // 减少防抖时间，让加载更快响应
       }
     };
 
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    console.log('滚动监听器已设置'); // 调试日志
+
     return () => {
       container.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
+      console.log('滚动监听器已清理'); // 调试日志
     };
-  }, [loadingChat, hasMore, loadMoreHistory]);
+  }, [loadingChat, hasMore, loadMoreHistory, before]); // 添加before依赖
 
   // 初始加载 - 只在conversationId变化时执行
   useEffect(() => {
@@ -142,10 +190,22 @@ export const useChatHistory = ({
         const formattedMessages = parseMessagesFromAPI(data);
         console.log('初始加载解析后的消息数量:', formattedMessages.length);
 
-        // 更新分页状态
-        if (data.before) {
-          setBefore(data.before);
+        // 更新分页状态 - API返回的是nextCursor字段
+        const nextCursor = data.nextCursor || data.data?.nextCursor;
+        console.log('更新分页状态:', {
+          hasData: !!data,
+          nextCursor,
+          before: data.before,
+          data,
+          messageCount: formattedMessages.length
+        }); // 调试日志
+
+        if (nextCursor !== null && nextCursor !== undefined && nextCursor !== '') {
+          console.log('设置before为:', nextCursor);
+          setBefore(nextCursor);
+          setHasMore(true); // 有nextCursor表示还有更多数据
         } else {
+          console.log('没有更多历史记录了，nextCursor为空');
           setHasMore(false);
         }
 
@@ -173,8 +233,11 @@ export const useChatHistory = ({
 
         // 滚动到底部
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+          console.log('初始加载完成，滚动到底部');
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 200); // 增加延迟确保DOM已完全更新
 
       } catch (error) {
         console.error('获取聊天记录错误:', error);
@@ -203,5 +266,6 @@ export const useChatHistory = ({
     messagesEndRef,
     loadMoreHistory,
     scrollToBottom,
+    before, // 暴露调试信息
   };
 };

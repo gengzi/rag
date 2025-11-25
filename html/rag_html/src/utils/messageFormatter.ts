@@ -99,6 +99,13 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
   let latestThreadId = '';
 
   messagesToProcess.forEach((msg: any) => {
+    console.log('处理消息:', {
+      id: msg.id,
+      role: msg.role,
+      hasContentArray: Array.isArray(msg.content),
+      contentLength: msg.content?.length
+    }); // 调试日志
+
     if (msg.content && Array.isArray(msg.content)) {
       // 处理复杂消息（包含多个contentItem）
       const processFlow = createProcessFlow(msg.content);
@@ -118,10 +125,23 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
       // 检查是否有web内容
       const webContentForMessage = extractWebContent(msg.content);
 
+      // 改进角色判断逻辑，支持多种可能的格式
+      let messageRole = 'assistant'; // 默认为assistant
+      if (msg.role === 'USER' || msg.role === 'user' || msg.role === 1) {
+        messageRole = 'user';
+      }
+
+      console.log('消息角色判断:', {
+        originalRole: msg.role,
+        finalRole: messageRole,
+        isUser: messageRole === 'user',
+        roleType: typeof msg.role
+      }); // 调试日志
+
       formattedMessages.push({
         id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         content: typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent),
-        role: msg.role === 'USER' ? 'user' : 'assistant',
+        role: messageRole,
         createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
         citations: firstTextContent?.content?.reference?.reference || [],
         ragReference: ragReference,
@@ -130,11 +150,24 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
         webContent: webContentForMessage
       });
     } else if (msg.content && typeof msg.content === 'string') {
-      // 处理简单文本消息
+      // 改进角色判断逻辑，支持多种可能的格式
+      let messageRole = 'assistant'; // 默认为assistant
+      if (msg.role === 'USER' || msg.role === 'user' || msg.role === 1) {
+        messageRole = 'user';
+      }
+
+      console.log('简单文本消息角色判断:', {
+        originalRole: msg.role,
+        finalRole: messageRole,
+        isUser: messageRole === 'user',
+        roleType: typeof msg.role,
+        content: msg.content.substring(0, 50) + '...'
+      }); // 调试日志
+
       formattedMessages.push({
         id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         content: msg.content,
-        role: msg.role === 'USER' ? 'user' : 'assistant',
+        role: messageRole,
         createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
         citations: [],
         ragReference: undefined,

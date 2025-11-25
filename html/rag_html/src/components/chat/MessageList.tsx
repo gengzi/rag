@@ -36,8 +36,12 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
       role="log"
       aria-live="polite"
     >
-      {/* 加载更多历史记录指示器 */}
-      {loadingChat && messages.length > 0 && <HistoryLoadingIndicator />}
+      {/* 加载更多历史记录指示器 - 显示在顶部 */}
+      {loadingChat && messages.length > 0 && (
+        <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b">
+          <HistoryLoadingIndicator />
+        </div>
+      )}
 
       {/* 消息列表 */}
       {messages.map((message) => (

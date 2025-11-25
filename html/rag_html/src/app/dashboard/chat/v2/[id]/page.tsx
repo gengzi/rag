@@ -42,6 +42,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     hasMore,
     messagesContainerRef,
     messagesEndRef,
+    loadMoreHistory,
+    before,
   } = useChatHistory({
     conversationId: id,
     onMessagesUpdate: (newMessages, isLoadMore) => {
@@ -143,6 +145,32 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
                   对话ID: {id}
                 </p>
               </div>
+            </div>
+            {/* 调试信息 */}
+            <div className="text-xs text-gray-500 space-y-1">
+              <div>消息数: {messages.length}</div>
+              <div>加载中: {loadingChat ? '是' : '否'}</div>
+              <div>有更多: {hasMore ? '是' : '否'}</div>
+              <div>NextCursor: {before || 'null'}</div>
+              <button
+                onClick={() => {
+                  console.log('手动触发加载更多');
+                  loadMoreHistory();
+                }}
+                disabled={loadingChat || !hasMore}
+                className="text-xs bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50 mr-2"
+              >
+                手动加载更多
+              </button>
+              <button
+                onClick={() => {
+                  console.log('滚动到顶部');
+                  messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="text-xs bg-green-500 text-white px-2 py-1 rounded"
+              >
+                滚动到顶部
+              </button>
             </div>
           </div>
         </div>

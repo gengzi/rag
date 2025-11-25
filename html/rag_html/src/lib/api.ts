@@ -13,6 +13,30 @@ export class ApiError extends Error {
 
 // 导入API配置
 import API_CONFIG from './config';
+// 暂时禁用缓存以修复聊天记录加载问题
+// import { defaultCache, createCachedFetch, deduplicatedFetch } from '@/utils/apiCache';
+// const cachedFetch = createCachedFetch(defaultCache);
+
+/**
+ * 处理API响应数据
+ */
+function handleApiResponse(responseData: any, status: number): any {
+  // 处理统一的响应格式
+  if ('code' in responseData && 'success' in responseData) {
+    // 根据后端定义，code为200表示成功
+    if (responseData.code !== 200 || !responseData.success) {
+      throw new ApiError(
+        responseData.code || 400,
+        responseData.message || 'API请求失败'
+      );
+    }
+    // 返回data字段的内容
+    return responseData.data;
+  }
+
+  // 如果不是统一格式，则直接返回原始响应
+  return responseData;
+}
 
 export async function fetchApi(url: string, options: FetchOptions = {}) {  
   const { data, headers: customHeaders = {}, params, ...restOptions } = options;  // 解构出params
@@ -71,7 +95,8 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
     
     console.log(`Making API request to: ${fullUrl}`);
     console.log(`Request headers:`, headers);
-    
+
+    // 暂时禁用缓存，直接使用fetch
     const response = await fetch(fullUrl, config);
     
     console.log(`API response status: ${response.status}`);
@@ -98,22 +123,8 @@ export async function fetchApi(url: string, options: FetchOptions = {}) {
 
     // 处理统一的响应格式
     const responseData = await response.json();
-    
-    // 检查后端统一的响应格式
-    if ('code' in responseData && 'success' in responseData) {
-      // 根据后端定义，code为200表示成功
-      if (responseData.code !== 200 || !responseData.success) {
-        throw new ApiError(
-          responseData.code || 400,
-          responseData.message || 'API请求失败'
-        );
-      }
-      // 返回data字段的内容
-      return responseData.data;
-    }
-    
-    // 如果不是统一格式，则直接返回原始响应
-    return responseData;
+
+    return handleApiResponse(responseData, response.status);
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -138,4 +149,12 @@ export const api = {
 
   patch: (url: string, data?: any, options?: Omit<FetchOptions, 'method'>) =>
     fetchApi(url, { ...options, method: 'PATCH', data }),
+};
+
+// 暂时禁用缓存控制
+export const cacheControl = {
+  clear: () => console.log('缓存已禁用'),
+  clearAll: () => console.log('缓存已禁用'),
+  getStats: () => ({ size: 0, maxSize: 0 }),
+  has: () => false,
 };

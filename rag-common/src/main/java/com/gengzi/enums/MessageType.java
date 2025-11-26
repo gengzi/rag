@@ -19,6 +19,11 @@ public enum MessageType {
     WEB_VIEW("web", "web视图"),
 
     /**
+     * END
+     */
+    END_OF_STREAM("end", "流已完成"),
+
+    /**
      * 用户输入的消息
      */
     USER_INPUT("user_input", "用户消息"),

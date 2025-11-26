@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.naming.ldap.PagedResultsControl;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,6 +37,17 @@ public class ChatMessageResponse {
      */
     private String messageType;
 
+
+    /**
+     * 在流返回时，此字段代表顺序号
+     */
+    private Long seqNum;
+
+    /**
+     * 消息id 在流返回时，此字段代表一条消息
+     */
+    private String messageId;
+
     // 构造 LLM 消息
     public static ChatMessageResponse ofLlm(LlmTextRes llmTextRes) {
         ChatMessageResponse msg = new ChatMessageResponse();
@@ -60,6 +69,14 @@ public class ChatMessageResponse {
         ChatMessageResponse msg = new ChatMessageResponse();
         msg.messageType = MessageType.WEB_VIEW.getTypeCode();
         msg.content = webViewRes;
+        return msg;
+    }
+
+    // end 结束
+    public static ChatMessageResponse ofEnd() {
+        ChatMessageResponse msg = new ChatMessageResponse();
+        msg.messageType = MessageType.END_OF_STREAM.getTypeCode();
+        msg.content = "";
         return msg;
     }
 

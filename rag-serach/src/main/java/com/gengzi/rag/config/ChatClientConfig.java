@@ -40,12 +40,16 @@ public class ChatClientConfig {
     }
 
 
+    @Bean
+    public ChatClient deepseekChatClientByRagNoMemory(OpenAiChatModel chatModel) {
+        return ChatClient.builder(chatModel).defaultAdvisors(advisor).build();
+    }
+
 
     @Bean
     public ChatClient deepseekChatClientNoRag(OpenAiChatModel chatModel) {
         return ChatClient.builder(chatModel).defaultAdvisors(
-                MessageChatMemoryAdvisor.builder(chatMemory).build()
-                , advisor).build();
+                MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
     }
 
 

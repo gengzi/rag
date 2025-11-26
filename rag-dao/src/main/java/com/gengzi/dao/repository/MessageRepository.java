@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpecificationExecutor<Message> {
@@ -32,4 +33,16 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
      */
     @Query("select e from Message e where e.conversation = :conversationId  and e.createdTime <= :createdTime and e.id < :msgId  order by e.createdTime desc ,e.id desc limit :limit")
     List<Message> findMessageByConversationIdAndLimitAndNextCursor(String conversationId, int limit, Instant createdTime, Long msgId);
+
+
+    /**
+     * 根据messageid 和 会话id 获取对应的记录
+     *
+     * @param messageId
+     * @param conversationId
+     * @return
+     */
+    @Query("select e from Message e where e.conversation = :conversationId and e.messageId = :messageId ")
+    Optional<Message> findMessageByMessageIdAndConversationId(String messageId, String conversationId);
+
 }

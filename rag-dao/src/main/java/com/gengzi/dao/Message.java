@@ -60,4 +60,13 @@ public class Message {
     @Column(name = "created_time")
     private Instant createdTime;
 
+    @Size(max = 128)
+    @NotNull
+    @Column(name = "message_id", nullable = false, length = 128)
+    private String messageId;
+
+    @Size(max = 32)
+    @Column(name = "exec_type", nullable = false, length = 32)
+    private String execType;
+
 }

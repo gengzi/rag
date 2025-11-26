@@ -135,6 +135,19 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         }, 100);
       }
     },
+    onRemoveMessage: (messageId) => {
+      // 移除指定ID的消息
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+    },
+    showNotification: (content) => {
+      // 使用toast组件显示优雅的提示信息
+      toast({
+        title: "提示",
+        description: content,
+        duration: 3000,
+        variant: "default"
+      });
+    },
     getToken,
   });
 

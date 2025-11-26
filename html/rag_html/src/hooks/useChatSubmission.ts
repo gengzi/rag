@@ -7,6 +7,8 @@ interface UseChatSubmissionOptions {
   onThreadIdUpdate: (threadId: string) => void;
   onMessageUpdate: (message: Message) => void;
   onNewMessage: (message: Message) => void;
+  onRemoveMessage: (messageId: string) => void;
+  showNotification: (content: string) => void;
   getToken: () => string;
 }
 
@@ -20,9 +22,12 @@ export const useChatSubmission = ({
   onThreadIdUpdate,
   onMessageUpdate,
   onNewMessage,
+  onRemoveMessage,
+  showNotification,
   getToken
 }: UseChatSubmissionOptions) => {
   const [isLoading, setIsLoading] = useState(false);
+  const lastUserMessageIdRef = useRef<string | null>(null);
   
   // 用于减少更新频率的refs
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -42,19 +47,7 @@ export const useChatSubmission = ({
       throw new Error('无法获取响应流');
     }
 
-    // 创建初始助手消息
-    const initialAssistantMessage: Message = {
-      id: assistantMessageId,
-      content: '',
-      role: 'assistant',
-      createdAt: new Date(),
-      processFlow: {
-        nodes: [],
-        edges: []
-      }
-    };
-
-    onNewMessage(initialAssistantMessage);
+    // 初始助手消息，暂不创建，等确认不是rlock类型后再创建
 
     // 流式数据状态
     let streamState = {
@@ -65,6 +58,9 @@ export const useChatSubmission = ({
       lastNodeName: null as string | null,
       webContentBuffer: '',
     };
+    
+    // 标记是否已创建助手消息
+    let initialAssistantMessageCreated = false;
 
     let hasWebContent = false;
     let webContent = '';
@@ -90,6 +86,40 @@ export const useChatSubmission = ({
             if (!jsonStr) continue;
 
             const data = JSON.parse(jsonStr);
+
+            // 检查是否为rlock类型
+              if (data.messageType === 'rlock') {
+                // 使用更优雅的提示方式
+                showNotification(data.content || '正在对话中，请刷新页面');
+                
+                // 移除刚才添加的用户消息
+                if (lastUserMessageIdRef.current) {
+                  onRemoveMessage(lastUserMessageIdRef.current);
+                  lastUserMessageIdRef.current = null;
+                }
+                
+                // 取消读取流
+                await reader.cancel();
+                return 'rlock-handled';
+              }
+              
+              // 如果不是rlock类型，且还没有创建助手消息，则创建
+              if (!initialAssistantMessageCreated) {
+                // 创建初始助手消息
+                const initialAssistantMessage: Message = {
+                  id: assistantMessageId,
+                  content: '',
+                  role: 'assistant',
+                  createdAt: new Date(),
+                  processFlow: {
+                    nodes: [],
+                    edges: []
+                  }
+                };
+                
+                onNewMessage(initialAssistantMessage);
+                initialAssistantMessageCreated = true;
+              }
 
             // 更新threadId
             if (data.threadId) {
@@ -211,6 +241,9 @@ export const useChatSubmission = ({
         createdAt: new Date()
       };
 
+      // 保存用户消息ID，用于在需要时移除
+      lastUserMessageIdRef.current = userMessage.id;
+      
       // 发送用户消息到父组件
       onNewMessage(userMessage);
 
@@ -243,7 +276,12 @@ export const useChatSubmission = ({
       const assistantMessageId = `msg-${Date.now()}-assistant-${Math.random().toString(36).substr(2, 9)}`;
 
       // 处理流式响应
-      await handleStreamResponse(response, assistantMessageId);
+      const result = await handleStreamResponse(response, assistantMessageId);
+      
+      // 如果是rlock类型，不会创建AI回复，返回null
+      if (result === 'rlock-handled') {
+        return null;
+      }
 
       return assistantMessageId;
     } catch (error) {
@@ -252,7 +290,7 @@ export const useChatSubmission = ({
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, threadId, isLoading, onThreadIdUpdate, onMessageUpdate, onNewMessage, getToken, handleStreamResponse]);
+  }, [conversationId, threadId, isLoading, onThreadIdUpdate, onMessageUpdate, onNewMessage, onRemoveMessage, showNotification, getToken, handleStreamResponse]);
 
   return {
     sendMessage,

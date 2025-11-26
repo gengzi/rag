@@ -80,5 +80,13 @@ public class ChatMessageResponse {
         return msg;
     }
 
+    // 正在对话中，请稍后
+    public static ChatMessageResponse ofRlocking() {
+        ChatMessageResponse msg = new ChatMessageResponse();
+        msg.messageType = MessageType.RLOCK.getTypeCode();
+        msg.content = "正在对话中，请刷新页面";
+        return msg;
+    }
+
 
 }

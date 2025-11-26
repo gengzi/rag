@@ -24,6 +24,11 @@ public enum MessageType {
     END_OF_STREAM("end", "流已完成"),
 
     /**
+     * LOCK
+     */
+    RLOCK("rlock", "正在对话中，请刷新页面"),
+
+    /**
      * 用户输入的消息
      */
     USER_INPUT("user_input", "用户消息"),

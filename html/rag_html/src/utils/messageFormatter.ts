@@ -299,6 +299,7 @@ export const processStreamData = (
     processEdges: Array<{ from: string; to: string }>;
     lastMessageType: 'text' | 'agent' | 'web' | null;
     lastNodeName: string | null;
+    webContentBuffer: string; // 新增：web内容缓冲区
   }
 ): {
   updatedTextContentBuffer: string;
@@ -309,12 +310,13 @@ export const processStreamData = (
   hasWebContent: boolean;
   webContent: string;
 } => {
-  const { textContentBuffer, processNodes, processEdges, lastMessageType, lastNodeName } = currentState;
+  const { textContentBuffer, processNodes, processEdges, lastMessageType, lastNodeName, webContentBuffer } = currentState;
   let updatedTextContentBuffer = textContentBuffer;
   let updatedProcessNodes = [...processNodes];
   let updatedProcessEdges = [...processEdges];
   let updatedLastMessageType = lastMessageType;
   let updatedLastNodeName = lastNodeName;
+  let updatedWebContentBuffer = webContentBuffer;
   let hasWebContent = false;
   let webContent = '';
 
@@ -324,19 +326,19 @@ export const processStreamData = (
       const newContent = textContent.answer || '';
 
       updatedTextContentBuffer += newContent;
+      updatedWebContentBuffer = ''; // 切换到文本模式时清空web缓冲区
 
-      if (lastMessageType === 'text') {
-        // 更新现有LLM节点
-        const existingLlmNodeIndex = processNodes.findIndex(node => node.type === 'llm');
-        if (existingLlmNodeIndex >= 0) {
-          updatedProcessNodes = updatedProcessNodes.map((node, index) =>
-            index === existingLlmNodeIndex
-              ? { ...node, content: updatedTextContentBuffer, reference: textContent.reference?.reference || [] }
-              : node
-          );
-        }
+      const existingLlmNodeIndex = processNodes.findIndex(node => node.type === 'llm');
+
+      if (existingLlmNodeIndex >= 0) {
+        // 更新现有LLM节点，只拼接内容，不重新创建
+        updatedProcessNodes = updatedProcessNodes.map((node, index) =>
+          index === existingLlmNodeIndex
+            ? { ...node, content: updatedTextContentBuffer, reference: textContent.reference?.reference || [] }
+            : node
+        );
       } else {
-        // 创建新的LLM节点
+        // 创建新的LLM节点（仅在第一次时）
         if (updatedProcessNodes.length > 0) {
           updatedProcessNodes = updatedProcessNodes.map(node => ({
             ...node,
@@ -376,40 +378,59 @@ export const processStreamData = (
 
       const sanitizedWebContent = sanitizeWebContent(webContentValue);
 
-      if (updatedProcessNodes.length > 0) {
-        updatedProcessNodes = updatedProcessNodes.map(node => ({
-          ...node,
-          status: 'completed' as const
-        }));
-      }
+      // 累积web内容
+      updatedWebContentBuffer += sanitizedWebContent;
 
-      const webNode: ProcessNode = {
-        type: 'web',
-        id: nodeName,
-        name: nodeName,
-        displayTitle: '网页内容',
-        status: 'active',
-        content: sanitizedWebContent,
-        order: updatedProcessNodes.length
-      };
+      // 查找是否已存在相同ID的web节点
+      const existingWebNodeIndex = processNodes.findIndex(node =>
+        node.type === 'web' && node.id === nodeName
+      );
 
-      updatedProcessNodes.push(webNode);
+      if (existingWebNodeIndex >= 0) {
+        // 更新现有web节点的内容
+        updatedProcessNodes = updatedProcessNodes.map((node, index) =>
+          index === existingWebNodeIndex
+            ? { ...node, content: updatedWebContentBuffer }
+            : node
+        );
+      } else {
+        // 创建新的web节点（仅在第一次时）
+        if (updatedProcessNodes.length > 0) {
+          updatedProcessNodes = updatedProcessNodes.map(node => ({
+            ...node,
+            status: 'completed' as const
+          }));
+        }
 
-      if (updatedProcessNodes.length > 1) {
-        const lastNodeIndex = updatedProcessNodes.length - 1;
-        updatedProcessEdges.push({
-          from: updatedProcessNodes[lastNodeIndex - 1].id,
-          to: updatedProcessNodes[lastNodeIndex].id
-        });
+        const webNode: ProcessNode = {
+          type: 'web',
+          id: nodeName,
+          name: nodeName,
+          displayTitle: '网页内容',
+          status: 'active',
+          content: updatedWebContentBuffer,
+          order: updatedProcessNodes.length
+        };
+
+        updatedProcessNodes.push(webNode);
+
+        if (updatedProcessNodes.length > 1) {
+          const lastNodeIndex = updatedProcessNodes.length - 1;
+          updatedProcessEdges.push({
+            from: updatedProcessNodes[lastNodeIndex - 1].id,
+            to: updatedProcessNodes[lastNodeIndex].id
+          });
+        }
       }
 
       updatedLastMessageType = 'web';
       hasWebContent = true;
-      webContent = sanitizedWebContent;
+      webContent = updatedWebContentBuffer;
       break;
 
     case 'agent':
       updatedTextContentBuffer = '';
+      updatedWebContentBuffer = ''; // 切换到agent模式时清空web缓冲区
       const agentContent = data.content;
       const agentNodeName = agentContent.nodeName;
       const nodeDescription = agentContent.content || '';
@@ -418,10 +439,8 @@ export const processStreamData = (
         node.type === 'agent' && node.id === agentNodeName
       );
 
-      if (existingNodeIndex >= 0 &&
-          lastMessageType === 'agent' &&
-          lastNodeName === agentNodeName) {
-        // 追加到现有agent节点
+      if (existingNodeIndex >= 0) {
+        // 追加到现有agent节点，避免重复创建
         const existingNode = processNodes[existingNodeIndex];
         const updatedDescription = (existingNode.description || '') + nodeDescription;
 
@@ -431,7 +450,7 @@ export const processStreamData = (
             : node
         );
       } else {
-        // 创建新的agent节点
+        // 创建新的agent节点（仅在第一次时）
         if (updatedProcessNodes.length > 0) {
           updatedProcessNodes = updatedProcessNodes.map(node => ({
             ...node,
@@ -473,7 +492,8 @@ export const processStreamData = (
     updatedLastMessageType,
     updatedLastNodeName,
     hasWebContent,
-    webContent
+    webContent,
+    updatedWebContentBuffer
   };
 };
 

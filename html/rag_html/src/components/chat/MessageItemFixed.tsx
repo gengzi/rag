@@ -162,7 +162,18 @@ AssistantMessage.displayName = 'AssistantMessage';
  * 修复版消息组件
  */
 const MessageItemFixed: React.FC<MessageItemProps> = memo(({ message }) => {
-  const messageKey = useMemo(() => `${message.id}-${message.createdAt.getTime()}`, [message.id, message.createdAt]);
+  // 使用更稳定的key，避免时间戳变化导致的重新渲染
+  const messageKey = useMemo(() => message.id, [message.id]);
+
+  // 调试日志：显示每条消息的信息
+  console.log('渲染消息组件:', {
+    id: message.id,
+    role: message.role,
+    content: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
+    hasProcessFlow: !!message.processFlow,
+    processFlowNodes: message.processFlow?.nodes?.length,
+    isUser: message.role === 'user'
+  });
 
   if (message.role === 'user') {
     return (
@@ -188,4 +199,40 @@ const MessageItemFixed: React.FC<MessageItemProps> = memo(({ message }) => {
 
 MessageItemFixed.displayName = 'MessageItemFixed';
 
-export default MessageItemFixed;
+/**
+ * 自定义比较函数，优化MessageItemFixed的重渲染
+ */
+const areMessageEqual = (prevProps: MessageItemProps, nextProps: MessageItemProps) => {
+  const prevMsg = prevProps.message;
+  const nextMsg = nextProps.message;
+
+  // 基础属性比较
+  if (prevMsg.id !== nextMsg.id ||
+      prevMsg.role !== nextMsg.role ||
+      prevMsg.content !== nextMsg.content) {
+    return false;
+  }
+
+  // 深度比较processFlow
+  const prevProcessFlowStr = JSON.stringify(prevMsg.processFlow);
+  const nextProcessFlowStr = JSON.stringify(nextMsg.processFlow);
+  if (prevProcessFlowStr !== nextProcessFlowStr) {
+    return false;
+  }
+
+  // 深度比较webContent
+  const prevWebContentStr = JSON.stringify(prevMsg.webContent);
+  const nextWebContentStr = JSON.stringify(nextMsg.webContent);
+  if (prevWebContentStr !== nextWebContentStr) {
+    return false;
+  }
+
+  // 比较isTyping
+  if (prevProps.isTyping !== nextProps.isTyping) {
+    return false;
+  }
+
+  return true;
+};
+
+export default React.memo(MessageItemFixed, areMessageEqual);

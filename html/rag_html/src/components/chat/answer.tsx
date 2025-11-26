@@ -132,7 +132,19 @@ interface AnswerProps {
   isStreaming?: boolean;
 }
 
-const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStreaming }) => {
+/**
+ * 比较函数，用于判断Answer组件是否需要重新渲染
+ */
+const areAnswerEqual = (prevProps: AnswerProps, nextProps: AnswerProps) => {
+  return (
+    prevProps.content === nextProps.content &&
+    JSON.stringify(prevProps.citations) === JSON.stringify(nextProps.citations) &&
+    JSON.stringify(prevProps.ragReference) === JSON.stringify(nextProps.ragReference) &&
+    prevProps.isStreaming === nextProps.isStreaming
+  );
+};
+
+const Answer: React.FC<AnswerProps> = React.memo(({ content, citations, ragReference, isStreaming }) => {
   const getCitations = () => {
     if (citations && citations.length > 0) {
       return citations.map(citation => ({
@@ -443,6 +455,6 @@ const Answer: React.FC<AnswerProps> = ({ content, citations, ragReference, isStr
       {renderCitations()}
     </div>
   );
-};
+}, areAnswerEqual);
 
 export default Answer;

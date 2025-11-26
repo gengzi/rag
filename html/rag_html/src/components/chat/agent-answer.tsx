@@ -188,10 +188,26 @@ interface AgentAnswerProps {
 }
 
 /**
+ * 比较函数，用于判断是否需要重新渲染组件
+ */
+const areEqual = (prevProps: AgentAnswerProps, nextProps: AgentAnswerProps) => {
+  // 简单比较，如果关键props没有变化则不重新渲染
+  const prevProcessFlowStr = JSON.stringify(prevProps.processFlow);
+  const nextProcessFlowStr = JSON.stringify(nextProps.processFlow);
+
+  return (
+    prevProcessFlowStr === nextProcessFlowStr &&
+    prevProps.content === nextProps.content &&
+    JSON.stringify(prevProps.citations) === JSON.stringify(nextProps.citations) &&
+    JSON.stringify(prevProps.ragReference) === JSON.stringify(nextProps.ragReference)
+  );
+};
+
+/**
  * AgentAnswer组件
  * 负责渲染代理回答内容和处理流程
  */
-const AgentAnswer: React.FC<AgentAnswerProps> = ({
+const AgentAnswer: React.FC<AgentAnswerProps> = React.memo(({
                                                     processFlow,
                                                     content,
                                                     citations,
@@ -607,6 +623,6 @@ const AgentAnswer: React.FC<AgentAnswerProps> = ({
         )} */}
       </div>
   );
-};
+}, areEqual);
 
 export default AgentAnswer;

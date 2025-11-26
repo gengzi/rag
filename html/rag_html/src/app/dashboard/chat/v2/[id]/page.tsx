@@ -13,7 +13,7 @@ import MessageItemFixed from "@/components/chat/MessageItemFixed";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
 
-import { Message } from '@/utils/messageFormatter';
+import { Message, processStreamData } from '@/utils/messageFormatter';
 
 export default function NewChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -47,17 +47,46 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   } = useChatHistory({
     conversationId: id,
     onMessagesUpdate: (newMessages, isLoadMore) => {
-      if (isLoadMore) {
-        // 加载更多时，将新消息添加到前面
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(msg => msg.id));
-          const newUniqueMessages = newMessages.filter(msg => !existingIds.has(msg.id));
-          return [...newUniqueMessages, ...prev];
-        });
-      } else {
-        // 初始加载时替换所有消息
-        setMessages(newMessages);
-      }
+      console.log('更新消息数组:', {
+        isLoadMore,
+        newMessagesCount: newMessages.length,
+        firstMessageRole: newMessages[0]?.role,
+        lastMessageRole: newMessages[newMessages.length - 1]?.role,
+        roles: newMessages.map(m => m.role)
+      }); // 调试日志
+
+    if (isLoadMore) {
+      // 加载更多时，将新消息添加到前面
+      setMessages(prev => {
+        console.log('加载更多 - 合并前:', {
+          existingCount: prev.length,
+          newCount: newMessages.length,
+          firstPrevRole: prev[0]?.role,
+          firstNewRole: newMessages[0]?.role
+        }); // 调试日志
+
+        const existingIds = new Set(prev.map(msg => msg.id));
+        const newUniqueMessages = newMessages.filter(msg => !existingIds.has(msg.id));
+        const merged = [...newUniqueMessages, ...prev];
+
+        console.log('加载更多 - 合并后:', {
+          totalCount: merged.length,
+          firstRole: merged[0]?.role,
+          lastRole: merged[merged.length - 1]?.role,
+          roleOrder: merged.map(m => m.role)
+        }); // 调试日志
+
+        return merged;
+      });
+    } else {
+      // 初始加载时替换所有消息
+      console.log('初始加载 - 替换所有消息:', {
+        messagesCount: newMessages.length,
+        roleOrder: newMessages.map(m => m.role)
+      }); // 调试日志
+
+      setMessages(newMessages);
+    }
     },
     onThreadIdUpdate: setThreadId,
     onTitleUpdate: setChatTitle,
@@ -69,14 +98,30 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     threadId,
     onThreadIdUpdate: setThreadId,
     onMessageUpdate: (updatedMessage) => {
-      // 更新现有消息
+      // 更新现有消息，但只在真正需要时才更新
       setMessages(prev => {
-        const updatedMessages = [...prev];
-        const index = updatedMessages.findIndex(msg => msg.id === updatedMessage.id);
+        const index = prev.findIndex(msg => msg.id === updatedMessage.id);
         if (index >= 0) {
+          // 检查是否真的需要更新
+          const prevMessage = prev[index];
+          const prevProcessFlowStr = JSON.stringify(prevMessage.processFlow);
+          const newProcessFlowStr = JSON.stringify(updatedMessage.processFlow);
+          const prevWebContentStr = JSON.stringify(prevMessage.webContent);
+          const newWebContentStr = JSON.stringify(updatedMessage.webContent);
+
+          if (
+            prevProcessFlowStr === newProcessFlowStr &&
+            prevWebContentStr === newWebContentStr &&
+            prevMessage.content === updatedMessage.content
+          ) {
+            return prev; // 如果没有变化，返回原数组避免重新渲染
+          }
+
+          const updatedMessages = [...prev];
           updatedMessages[index] = updatedMessage;
+          return updatedMessages;
         }
-        return updatedMessages;
+        return prev;
       });
     },
     onNewMessage: (newMessage) => {
@@ -88,6 +133,85 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
+      }
+    },
+    onRenderCachedMessage: (streamData) => {
+      // 渲染缓存的流式数据
+      console.log('渲染缓存消息:', streamData);
+
+      // 将缓存的流式数据转换为消息格式并添加到消息列表
+      try {
+        const data = streamData.data;
+        if (data.messageType && data.content) {
+          // 创建助手消息用于显示缓存内容，使用固定的ID以便更新
+          const cachedMessageId = `cached-${streamData.messageId}`;
+          const existingIndex = messages.findIndex(msg => msg.id === cachedMessageId);
+
+          // 模拟流式数据处理，构建processFlow
+          const streamState = {
+            textContentBuffer: '',
+            processNodes: [] as any[],
+            processEdges: [] as any[],
+            lastMessageType: null as 'text' | 'agent' | 'web' | null,
+            lastNodeName: null as string | null,
+            webContentBuffer: '',
+          };
+
+          // 使用相同的数据处理器处理缓存数据
+          const processor = {
+            messageId: cachedMessageId,
+            messageType: data.messageType,
+            content: data.content,
+            threadId: data.threadId
+          };
+
+          const result = processStreamData(processor, streamState);
+
+          if (existingIndex >= 0) {
+            // 更新现有的缓存消息
+            setMessages(prev => prev.map(msg =>
+              msg.id === cachedMessageId
+                ? {
+                    ...msg,
+                    processFlow: {
+                      nodes: result.updatedProcessNodes,
+                      edges: result.updatedProcessEdges
+                    },
+                    ...(result.hasWebContent && {
+                      webContent: {
+                        messageType: 'web',
+                        content: result.webContent,
+                        nodeName: result.updatedProcessNodes.find(n => n.type === 'web')?.name || 'web'
+                      }
+                    })
+                  }
+                : msg
+            ));
+          } else {
+            // 创建新的缓存消息
+            const cachedMessage: Message = {
+              id: cachedMessageId,
+              content: '',
+              role: 'assistant',
+              createdAt: new Date(streamData.timestamp),
+              processFlow: {
+                nodes: result.updatedProcessNodes,
+                edges: result.updatedProcessEdges
+              },
+              ...(result.hasWebContent && {
+                webContent: {
+                  messageType: 'web',
+                  content: result.webContent,
+                  nodeName: result.updatedProcessNodes.find(n => n.type === 'web')?.name || 'web'
+                }
+              })
+            };
+
+            setMessages(prev => [...prev, cachedMessage]);
+          }
+        }
+      } catch (error) {
+        console.error('渲染缓存消息失败:', error);
       }
     },
     getToken,

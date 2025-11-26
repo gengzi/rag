@@ -37,6 +37,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.function.Tuple2;
 
 import java.time.Instant;
 import java.util.*;
@@ -50,6 +51,7 @@ public class ChatServiceImpl implements ChatService {
 
     public final static String MESSAGE_MAP_KEY = "chat:hash:msg:%s";
     public final static String MESSAGE_STREAM_KEY = "chat:stream:msg:%s";
+    public final static String MESSAGE_MAP_KEY_CONVERSATION = "chat:key:conversation:%s";
     private static final Logger logger = LoggerFactory.getLogger(ChatServiceImpl.class);
     @Autowired
     private ConversationRepository conversationRepository;
@@ -103,7 +105,8 @@ public class ChatServiceImpl implements ChatService {
         AtomicLong lastSeq = new AtomicLong(-1);
         List<ChatMessageResponse> responseParts = new LinkedList<>(); // 存储响应分片
 
-        serverSentEventFlux
+
+        Flux<Tuple2<Long, ServerSentEvent<ChatMessageResponse>>> tuple2Flux = serverSentEventFlux
                 .doOnNext(
                         sse -> {
                             ChatMessageResponse data = sse.data();
@@ -112,7 +115,12 @@ public class ChatServiceImpl implements ChatService {
                                 responseParts.add(data);
                             }
                         }
-                ).doOnComplete(
+                )
+                .index()
+                .doOnNext(tuple -> {
+                    saveAndSend(messageId, sink, tuple.getT1(), tuple.getT2(), stream, hash, lastSeq);
+                })
+                .doOnComplete(
                         () -> {
                             Mono.fromRunnable(() -> {
                                         contentMerge(responseParts, req);
@@ -121,10 +129,6 @@ public class ChatServiceImpl implements ChatService {
 
                         }
                 )
-                .index()
-                .doOnNext(tuple -> {
-                    saveAndSend(messageId, sink, tuple.getT1(), tuple.getT2(), stream, hash, lastSeq);
-                })
                 .doOnComplete(() -> {
                     logger.info("Streaming completed");
                     // 发送完成信号
@@ -141,8 +145,20 @@ public class ChatServiceImpl implements ChatService {
                             sink.tryEmitError(e);
                             sink.tryEmitComplete();
                         }
-                )
-                .subscribe();
+                );
+        Mono.fromRunnable(() -> {
+            // 将当前正在生成的messageid存入redis
+            RBucket<String> bucket = redissonClient.getBucket(String.format(MESSAGE_MAP_KEY_CONVERSATION, req.getConversationId()));
+            bucket.set(messageId); // 60秒过期
+        }).thenMany(tuple2Flux).then(Mono.fromRunnable(() -> {
+            // 移除
+            boolean deleted = redissonClient.getBucket(String.format(MESSAGE_MAP_KEY_CONVERSATION, req.getConversationId())).delete();
+            if (deleted) {
+                logger.info("{}-删除正在生成的消息messageId成功", req.getConversationId());
+            } else {
+                logger.error("删除正在生成的消息messageId失败");
+            }
+        })).subscribe();
     }
 
     private void contentMerge(List<ChatMessageResponse> responseParts, ChatReq req) {
@@ -308,6 +324,8 @@ public class ChatServiceImpl implements ChatService {
             sink.tryEmitNext(ServerSentEvent.builder(ChatMessageResponse.ofEnd()).build());
             sink.tryEmitError(new BusinessException("会话不存在"));
         }
+
+
         // 2，判断agentid是否存在，并且agentid是否可用
         if (StrUtil.isNotBlank(req.getAgentId()) && Agent.isExist(req.getAgentId())) {
 
@@ -432,7 +450,7 @@ public class ChatServiceImpl implements ChatService {
         boolean lockAcquired = false;
         // 尝试获取锁
         try {
-            lockAcquired = lock.tryLock(3, 600, TimeUnit.SECONDS);
+            lockAcquired = lock.tryLock(3, 10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException("正在对话中，请稍等！");
         }
@@ -448,21 +466,35 @@ public class ChatServiceImpl implements ChatService {
         if (StrUtil.isNotBlank(messageId) && StrUtil.isNotBlank(seqNum)) {
             // 获取redis 存放的chunk数据
             // 先根据seqNum 查询redis 序号id，在循环获取redis 数据
-            RMap<String, String> map = redissonClient.getMap(String.format(MESSAGE_MAP_KEY, messageId));
+            RMap<String, String> map = redissonClient.getMap(String.format(MESSAGE_MAP_KEY, messageId), StringCodec.INSTANCE);
             String msgSeqId = map.get(seqNum);
-            RStream<Object, Object> stream = redissonClient.getStream(String.format(MESSAGE_STREAM_KEY, messageId));
-            StreamMessageId streamMessageId = new StreamMessageId(Long.parseLong(msgSeqId.split("-")[0]), Long.parseLong(msgSeqId.split("-")[1]) + 1);
+            RStream<Object, Object> stream = redissonClient.getStream(String.format(MESSAGE_STREAM_KEY, messageId), StringCodec.INSTANCE);
+            StreamMessageId streamMessageId = new StreamMessageId(Long.parseLong(msgSeqId.split("-")[0]), Long.parseLong(msgSeqId.split("-")[1]));
             while (true) {
+                boolean hasData = false;
                 Map<StreamMessageId, Map<Object, Object>> range = stream.range(10, streamMessageId, StreamMessageId.MAX);
                 for (Map.Entry<StreamMessageId, Map<Object, Object>> streamMessageIdMapEntry : range.entrySet()) {
+                    hasData = true;
                     Map<Object, Object> value = streamMessageIdMapEntry.getValue();
                     if (value.containsKey("message")) {
                         String content = (String) value.get("message");
                         ChatMessageResponse bean = JSONUtil.toBean(content, ChatMessageResponse.class);
+                        streamMessageId = new StreamMessageId(streamMessageIdMapEntry.getKey().getId0(), streamMessageIdMapEntry.getKey().getId1() + 1);
                         if (MessageType.END_OF_STREAM.getTypeCode().equals(bean.getMessageType())) {
+                            sink.tryEmitNext(ServerSentEvent.builder(bean).build());
                             break;
                         }
                         sink.tryEmitNext(ServerSentEvent.builder(bean).build());
+                    }
+                }
+
+                // 如果没有数据，等待一段时间再继续
+                if (!hasData) {
+                    try {
+                        Thread.sleep(1000); // 等待100毫秒
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
                     }
                 }
             }
@@ -482,9 +514,13 @@ public class ChatServiceImpl implements ChatService {
     public Mono<ConversationDetailsResponse> chatMsgList(String conversationId, ChatMsgRecordReq recordReq) {
         // TODO 需要改造，需要返回每条消息的状态，如果最新的一条消息还在进行中的，前端需要调用对话接口进行续传数据
         return Mono.fromCallable(() -> {
+            RBucket<String> bucket = redissonClient.getBucket(String.format(MESSAGE_MAP_KEY_CONVERSATION, conversationId));
+            String runMessageId = bucket.get();
             if (StrUtil.isBlank(recordReq.getBefore())) {
                 List<Message> messageByConversationIdAndLimit = messageRepository.findMessageByConversationIdAndLimit(conversationId, recordReq.getLimit());
-                return msgListResult(messageByConversationIdAndLimit);
+                ConversationDetailsResponse conversationDetailsResponse = msgListResult(messageByConversationIdAndLimit);
+                conversationDetailsResponse.setRunMessageId(runMessageId);
+                return conversationDetailsResponse;
             }
             List<String> collect = Arrays.stream(recordReq.getBefore().split("_")).collect(Collectors.toList());
             if (collect.size() != 2) {

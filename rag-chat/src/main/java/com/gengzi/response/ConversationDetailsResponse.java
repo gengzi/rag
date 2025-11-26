@@ -22,6 +22,12 @@ public class ConversationDetailsResponse {
      */
     private String nextCursor;
 
+
+    /**
+     * 运行中的messageId
+     */
+    private String runMessageId;
+
 //
 //    /**
 //     * 每条message的id信息

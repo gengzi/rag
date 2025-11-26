@@ -70,17 +70,17 @@ public class ChatStreamAspect {
     @Around("chatStreamPointcut()")
     public Object aroundGenerateStream(ProceedingJoinPoint joinPoint) throws Throwable {
         // -------------------- 1. 记录请求入参 --------------------
-        Object[] args = joinPoint.getArgs();
-        String chatId = IdUtil.simpleUUID();
-        String chatResultId = IdUtil.simpleUUID();
-        if (args.length > 0 && args[0] instanceof ChatReq req) {
-            log.debug("聊天请求入参：conversationId={}, query={}", req.getConversationId(), req.getQuery());
-            // 先生成消息id （messageid）用于标识某次对话的消息，只插入记录表，记录用户消息，ai回复进行占位（不占位是不是也行？？），不插入记忆表
-            saveUserConversation(req.getConversationId(), chatId, req.getQuery(), req.getThreadId());
-            MessageContext messageContext = new MessageContext();
-            messageContext.setMessageId(chatResultId);
-            req.setMessageContext(messageContext);
-        }
+//        Object[] args = joinPoint.getArgs();
+//        String chatId = IdUtil.simpleUUID();
+//        String chatResultId = IdUtil.simpleUUID();
+//        if (args.length > 0 && args[0] instanceof ChatReq req) {
+//            log.debug("聊天请求入参：conversationId={}, query={}", req.getConversationId(), req.getQuery());
+//            // 先生成消息id （messageid）用于标识某次对话的消息，只插入记录表，记录用户消息，ai回复进行占位（不占位是不是也行？？），不插入记忆表
+//            saveUserConversation(req.getConversationId(), chatId, req.getQuery(), req.getThreadId());
+//            MessageContext messageContext = new MessageContext();
+//            messageContext.setMessageId(chatResultId);
+//            req.setMessageContext(messageContext);
+//        }
 
         // -------------------- 2. 执行原方法，获取流式响应 --------------------
         Object result = null;
@@ -93,96 +93,96 @@ public class ChatStreamAspect {
             log.error("请求异常：{}", e.getMessage());
         }
 
+//
+//        Flux<ServerSentEvent<ChatMessageResponse>> originalFlux = (Flux<ServerSentEvent<ChatMessageResponse>>) result;
+//
+//        // -------------------- 3. 收集流式响应，记录完整内容 --------------------
+//        List<ChatMessageResponse> responseParts = new LinkedList<>(); // 存储响应分片
+//        List<ChatMessageResponse> chatMessageResponses = new LinkedList<>();
+//        // 对流式响应进行增强：收集分片 + 完成后记录完整响应
+//        Flux<ServerSentEvent<ChatMessageResponse>> enhancedFlux = originalFlux
+//                // 1. 收集每个响应分片
+//                .doOnNext(sse -> {
+//                    ChatMessageResponse data = sse.data();
+//                    if (data != null) {
+//                        responseParts.add(data); // 累加分片
+//                        log.debug("收到响应分片：{}", data.getContent()); // 可选：记录分片详情
+//                    }
+//                })
+//                // 2. 流完成后，汇总并记录完整响应
+//                .doOnComplete(() -> {
+//                    // 合并所有分片内容（根据实际 ChatMessageResponse 结构调整）
+//
+//                    // 相同节点内容的需要合并在一起
+//
+//                    AtomicReference<ChatMessageResponse> current = new AtomicReference<>();
+//
+//                    responseParts.stream().forEach(
+//                            responsePart -> {
+//                                ChatMessageResponse curr = current.get();
+//
+//                                if (curr == null) {
+//                                    current.set(responsePart);
+//                                    return;
+//                                }
+//
+//                                // 判断是否可以合并：必须是相同类型，并且满足内部合并条件
+//                                if (canMerge(curr, responsePart)) {
+//                                    mergeInto(curr, responsePart);
+//                                } else {
+//                                    // 不能合并：先保存当前，再开启新的
+//                                    chatMessageResponses.add(curr);
+//                                    current.set(responsePart);
+//                                }
+//                            }
+//                    );
+//
+//                    // 别忘了把最后一个 current 加进去！
+//                    if (current.get() != null) {
+//                        chatMessageResponses.add(current.get());
+//                    }
+//
+//                    // 记录完整响应（用户ID从请求入参获取，需提前保存）
+//                    ChatReq req = (ChatReq) args[0];
+//                    log.info("聊天响应完成：conversationId={}, 完整响应={}", req.getConversationId(), chatMessageResponses);
+//                    for (ChatMessageResponse ChatMessageResponse : chatMessageResponses) {
+//                        log.info("完整响应：{}", ChatMessageResponse.getMessageType(), ChatMessageResponse.getContent());
+//                    }
+//                    //TODO 可根据需要存储到数据库/Redis：如保存 fullContent 到聊天记录表
+//
+//
+//                    // TODO 将输出信息进行整合，加入到系统的记忆模块中(可能需要llm提取出语义信息存入记忆)
+//                    LinkedList<Message> messages = new LinkedList<>();
+//                    StringBuilder stringBuilder = new StringBuilder();
+//                    // llmtext 都存入记忆中作为一个信息，agent 变成一个标识信息
+//                    chatMessageResponses.stream().forEach(ChatMessageResponse -> {
+//                        Object content = ChatMessageResponse.getContent();
+//                        if (content instanceof LlmTextRes llmTextRes) {
+//                            stringBuilder.append("\n" + llmTextRes.getAnswer() + "\n");
+//                        }
+//                        if (content instanceof AgentGraphRes agentGraphRes) {
+//                            String displayTitle = StrUtil.isBlank(agentGraphRes.getDisplayTitle()) ? agentGraphRes.getNodeName() : agentGraphRes.getDisplayTitle();
+//                            String agentContent = agentGraphRes.getContent();
+//                            stringBuilder.append("\n节点" + displayTitle + "执行结果:" + agentContent + "\n");
+//                        }
+//
+//                    });
+//                    UserMessage userMessage = new UserMessage(req.getQuery());
+//                    // 设置聊天记忆
+//                    chatMemory.add(req.getConversationId(), List.of(userMessage));
+//                    messages.add(new AssistantMessage(stringBuilder.toString()));
+//                    chatMemory.add(req.getConversationId(), messages);
+//
+//                    // 设置聊天记录
+//
+//                    saveAssistantConversation(req.getConversationId(), chatResultId, chatMessageResponses);
+//                })
+//                // 3. 处理异常
+//                .doOnError(error -> {
+//                    log.error("流式响应异常：", error);
+//                });
 
-        Flux<ServerSentEvent<ChatMessageResponse>> originalFlux = (Flux<ServerSentEvent<ChatMessageResponse>>) result;
-
-        // -------------------- 3. 收集流式响应，记录完整内容 --------------------
-        List<ChatMessageResponse> responseParts = new LinkedList<>(); // 存储响应分片
-        List<ChatMessageResponse> chatMessageResponses = new LinkedList<>();
-        // 对流式响应进行增强：收集分片 + 完成后记录完整响应
-        Flux<ServerSentEvent<ChatMessageResponse>> enhancedFlux = originalFlux
-                // 1. 收集每个响应分片
-                .doOnNext(sse -> {
-                    ChatMessageResponse data = sse.data();
-                    if (data != null) {
-                        responseParts.add(data); // 累加分片
-                        log.debug("收到响应分片：{}", data.getContent()); // 可选：记录分片详情
-                    }
-                })
-                // 2. 流完成后，汇总并记录完整响应
-                .doOnComplete(() -> {
-                    // 合并所有分片内容（根据实际 ChatMessageResponse 结构调整）
-
-                    // 相同节点内容的需要合并在一起
-
-                    AtomicReference<ChatMessageResponse> current = new AtomicReference<>();
-
-                    responseParts.stream().forEach(
-                            responsePart -> {
-                                ChatMessageResponse curr = current.get();
-
-                                if (curr == null) {
-                                    current.set(responsePart);
-                                    return;
-                                }
-
-                                // 判断是否可以合并：必须是相同类型，并且满足内部合并条件
-                                if (canMerge(curr, responsePart)) {
-                                    mergeInto(curr, responsePart);
-                                } else {
-                                    // 不能合并：先保存当前，再开启新的
-                                    chatMessageResponses.add(curr);
-                                    current.set(responsePart);
-                                }
-                            }
-                    );
-
-                    // 别忘了把最后一个 current 加进去！
-                    if (current.get() != null) {
-                        chatMessageResponses.add(current.get());
-                    }
-
-                    // 记录完整响应（用户ID从请求入参获取，需提前保存）
-                    ChatReq req = (ChatReq) args[0];
-                    log.info("聊天响应完成：conversationId={}, 完整响应={}", req.getConversationId(), chatMessageResponses);
-                    for (ChatMessageResponse ChatMessageResponse : chatMessageResponses) {
-                        log.info("完整响应：{}", ChatMessageResponse.getMessageType(), ChatMessageResponse.getContent());
-                    }
-                    //TODO 可根据需要存储到数据库/Redis：如保存 fullContent 到聊天记录表
-
-
-                    // TODO 将输出信息进行整合，加入到系统的记忆模块中(可能需要llm提取出语义信息存入记忆)
-                    LinkedList<Message> messages = new LinkedList<>();
-                    StringBuilder stringBuilder = new StringBuilder();
-                    // llmtext 都存入记忆中作为一个信息，agent 变成一个标识信息
-                    chatMessageResponses.stream().forEach(ChatMessageResponse -> {
-                        Object content = ChatMessageResponse.getContent();
-                        if (content instanceof LlmTextRes llmTextRes) {
-                            stringBuilder.append("\n" + llmTextRes.getAnswer() + "\n");
-                        }
-                        if (content instanceof AgentGraphRes agentGraphRes) {
-                            String displayTitle = StrUtil.isBlank(agentGraphRes.getDisplayTitle()) ? agentGraphRes.getNodeName() : agentGraphRes.getDisplayTitle();
-                            String agentContent = agentGraphRes.getContent();
-                            stringBuilder.append("\n节点" + displayTitle + "执行结果:" + agentContent + "\n");
-                        }
-
-                    });
-                    UserMessage userMessage = new UserMessage(req.getQuery());
-                    // 设置聊天记忆
-                    chatMemory.add(req.getConversationId(), List.of(userMessage));
-                    messages.add(new AssistantMessage(stringBuilder.toString()));
-                    chatMemory.add(req.getConversationId(), messages);
-
-                    // 设置聊天记录
-
-                    saveAssistantConversation(req.getConversationId(), chatResultId, chatMessageResponses);
-                })
-                // 3. 处理异常
-                .doOnError(error -> {
-                    log.error("流式响应异常：", error);
-                });
-
-        return enhancedFlux; // 返回增强后的 Flux，不影响原响应
+        return result; // 返回增强后的 Flux，不影响原响应
     }
 
     private boolean canMerge(ChatMessageResponse a, ChatMessageResponse b) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
@@ -27,6 +27,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   const [chatTitle, setChatTitle] = useState("新对话");
   const [showPptTag, setShowPptTag] = useState(false);
   const [showDeepResearchTag, setShowDeepResearchTag] = useState(false);
+  const [runMessageId, setRunMessageId] = useState<string>(''); // 正在输出的消息ID
+  const [isContinueReading, setIsContinueReading] = useState(false); // 是否正在续读
 
   // 获取token函数
   const getToken = useCallback(() => {
@@ -90,10 +92,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     },
     onThreadIdUpdate: setThreadId,
     onTitleUpdate: setChatTitle,
+    onRunMessageIdUpdate: setRunMessageId,
   });
 
   // 聊天提交Hook
-  const { sendMessage, isLoading } = useChatSubmission({
+  const { sendMessage, continueReading, isLoading } = useChatSubmission({
     conversationId: id,
     threadId,
     onThreadIdUpdate: setThreadId,
@@ -187,6 +190,48 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     router.push('/dashboard/chat');
   }, [router]);
 
+  // 处理续读逻辑 - 当有runMessageId且不在加载中时自动续读
+  useEffect(() => {
+    const handleContinueReading = async () => {
+      if (runMessageId && !loadingChat && !isLoading && !isContinueReading) {
+        console.log('检测到正在输出的消息，开始续读:', runMessageId);
+
+        // 设置续读状态
+        setIsContinueReading(true);
+
+        // 先检查是否已经存在该消息ID，如果存在则先移除
+        setMessages(prev => {
+          const hasExistingMessage = prev.some(msg => msg.id === runMessageId);
+          if (hasExistingMessage) {
+            console.log('发现已存在的消息，先移除:', runMessageId);
+            return prev.filter(msg => msg.id !== runMessageId);
+          }
+          return prev;
+        });
+
+        try {
+          await continueReading(runMessageId, 1);
+          // 续读完成后清空runMessageId
+          setRunMessageId('');
+        } catch (error) {
+          console.error('续读失败:', error);
+          toast({
+            variant: "destructive",
+            title: "续读失败",
+            description: `续读对话失败: ${error instanceof Error ? error.message : '未知错误'}`
+          });
+          // 续读失败也要清空runMessageId，避免重复尝试
+          setRunMessageId('');
+        } finally {
+          // 清除续读状态
+          setIsContinueReading(false);
+        }
+      }
+    };
+
+    handleContinueReading();
+  }, [runMessageId, loadingChat, isLoading, isContinueReading, continueReading, toast]);
+
   return (
     <DashboardLayout>
       <div className="min-h-[calc(100vh-4rem)] flex flex-col space-y-6">
@@ -208,8 +253,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
             <div className="text-xs text-gray-500 space-y-1">
               <div>消息数: {messages.length}</div>
               <div>加载中: {loadingChat ? '是' : '否'}</div>
+              <div>发送中: {isLoading ? '是' : '否'}</div>
               <div>有更多: {hasMore ? '是' : '否'}</div>
               <div>NextCursor: {before || 'null'}</div>
+              <div>正在续读: {runMessageId || '无'}</div>
+              <div>续读状态: {isContinueReading ? '进行中' : '空闲'}</div>
               <button
                 onClick={() => {
                   console.log('手动触发加载更多');

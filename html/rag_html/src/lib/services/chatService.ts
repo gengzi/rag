@@ -24,6 +24,7 @@ export interface Chat {
 export interface ChatHistoryResponse {
   message: any[];
   before?: string;
+  runMessageId?: string; // 用于标识当前对话正在输出的消息id
   data?: {
     message: any[];
   };

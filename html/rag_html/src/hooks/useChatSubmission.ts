@@ -58,12 +58,15 @@ export const useChatSubmission = ({
       lastNodeName: null as string | null,
       webContentBuffer: '',
     };
-    
+
     // 标记是否已创建助手消息
     let initialAssistantMessageCreated = false;
 
     let hasWebContent = false;
     let webContent = '';
+
+    // JSON缓冲区，用于处理跨多行的JSON数据
+    let jsonBuffer = '';
 
     try {
       // 处理流式数据
@@ -75,17 +78,34 @@ export const useChatSubmission = ({
         const lines = chunk.split('\n');
 
         for (const line of lines) {
-          if (!line.trim()) continue;
+          // 跳过空行
+          if (!line.trim()) {
+            continue;
+          }
 
+          // 添加到缓冲区
+          if (jsonBuffer) {
+            jsonBuffer += '\n' + line; // 保留换行符
+          } else {
+            jsonBuffer = line;
+          }
+
+          let jsonStr = jsonBuffer.trim();
+          if (jsonStr.startsWith('data:')) {
+            jsonStr = jsonStr.substring(5).trim();
+          }
+
+          if (!jsonStr) {
+            continue;
+          }
+
+          // 尝试解析JSON
           try {
-            let jsonStr = line;
-            if (jsonStr.startsWith('data:')) {
-              jsonStr = jsonStr.substring(5).trim();
-            }
-
-            if (!jsonStr) continue;
-
+            console.log('尝试解析JSON:', jsonStr);
             const data = JSON.parse(jsonStr);
+
+            // 成功解析后清空缓冲区
+            jsonBuffer = '';
 
             // 检查是否为rlock类型
               if (data.messageType === 'rlock') {
@@ -105,6 +125,7 @@ export const useChatSubmission = ({
               
               // 如果不是rlock类型，且还没有创建助手消息，则创建
               if (!initialAssistantMessageCreated) {
+                console.log('创建初始助手消息，ID:', assistantMessageId);
                 // 创建初始助手消息
                 const initialAssistantMessage: Message = {
                   id: assistantMessageId,
@@ -116,7 +137,7 @@ export const useChatSubmission = ({
                     edges: []
                   }
                 };
-                
+
                 onNewMessage(initialAssistantMessage);
                 initialAssistantMessageCreated = true;
               }
@@ -175,13 +196,22 @@ export const useChatSubmission = ({
             }
             updateTimeoutRef.current = setTimeout(() => {
               if (pendingUpdateRef.current) {
+                console.log('更新助手消息，ID:', assistantMessageId, '节点数:', assistantMessage.processFlow.nodes.length);
                 onMessageUpdate(pendingUpdateRef.current);
                 pendingUpdateRef.current = null;
               }
             }, 50); // 50ms节流延迟
 
           } catch (parseError) {
-            console.error("解析流式数据失败:", parseError);
+            console.error("JSON解析失败，尝试累积更多数据:", parseError);
+            console.error("当前缓冲区内容:", jsonBuffer);
+
+            // 如果解析失败，可能是JSON不完整，继续累积下一行的数据
+            // 但如果缓冲区太大，可能是格式错误，需要清空
+            if (jsonBuffer.length > 10000) {
+              console.error("缓冲区过大，清空重置");
+              jsonBuffer = '';
+            }
           }
         }
       }
@@ -292,8 +322,64 @@ export const useChatSubmission = ({
     }
   }, [conversationId, threadId, isLoading, onThreadIdUpdate, onMessageUpdate, onNewMessage, onRemoveMessage, showNotification, getToken, handleStreamResponse]);
 
+  /**
+   * 续读正在输出的流
+   * @param messageId 正在输出的消息ID
+   * @param seqNum 序列号，默认为0
+   */
+  const continueReading = useCallback(async (messageId: string, seqNum: number = 0) => {
+    if (isLoading) return null;
+
+    try {
+      setIsLoading(true);
+
+      // 准备请求数据
+      const requestData = {
+        conversationId,
+        threadId,
+        messageId,
+        seqNum
+      };
+
+      console.log('续读对话请求:', requestData);
+
+      // 调用API端点
+      const response = await fetch('http://localhost:8086/chat/stream/msg', {
+        method: 'POST',
+        headers: {
+          'accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log('开始续读流数据，消息ID:', messageId);
+
+      // 处理流式响应
+      const result = await handleStreamResponse(response, messageId);
+
+      // 如果是rlock类型，不会创建AI回复，返回null
+      if (result === 'rlock-handled') {
+        return null;
+      }
+
+      return messageId;
+    } catch (error) {
+      console.error("续读消息失败:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversationId, threadId, isLoading, onThreadIdUpdate, onMessageUpdate, onNewMessage, onRemoveMessage, showNotification, getToken, handleStreamResponse]);
+
   return {
     sendMessage,
+    continueReading,
     isLoading,
   };
 };

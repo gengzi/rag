@@ -9,6 +9,7 @@ interface UseChatHistoryOptions {
   onMessagesUpdate: (messages: Message[], isLoadMore: boolean) => void;
   onThreadIdUpdate: (threadId: string) => void;
   onTitleUpdate: (title: string) => void;
+  onRunMessageIdUpdate?: (runMessageId: string) => void; // 新增回调处理runMessageId
 }
 
 /**
@@ -19,7 +20,8 @@ export const useChatHistory = ({
   conversationId,
   onMessagesUpdate,
   onThreadIdUpdate,
-  onTitleUpdate
+  onTitleUpdate,
+  onRunMessageIdUpdate
 }: UseChatHistoryOptions) => {
   const { toast } = useToast();
   const [loadingChat, setLoadingChat] = useState(false);
@@ -222,6 +224,12 @@ export const useChatHistory = ({
 
         // 更新消息
         onMessagesUpdate(formattedMessages, false);
+
+        // 处理runMessageId，如果有则调用回调
+        if (data.runMessageId && onRunMessageIdUpdate) {
+          console.log('检测到正在输出的消息ID:', data.runMessageId);
+          onRunMessageIdUpdate(data.runMessageId);
+        }
 
         // 设置聊天标题
         const firstUserMessage = formattedMessages.find(msg => msg.role === 'user');

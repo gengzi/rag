@@ -106,7 +106,7 @@ public class DeepResearchGraphProcess {
                                     .doOnComplete(
                                             () -> {
                                                 logger.info("Streaming completed");
-                                                sink.tryEmitNext(ServerSentEvent.builder(complete()).build());
+//                                                sink.tryEmitNext(ServerSentEvent.builder(complete()).build());
                                                 sink.tryEmitComplete();
                                             }
                                     )

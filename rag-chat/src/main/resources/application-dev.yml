@@ -35,4 +35,4 @@ user:
   jwt:
     jwtSecret: pwKtHLwn5wurpahhR4tZjNdEfXE3pG0rQweG/4tbV0k1AV93ji9CLxfuGWR8rRtgqvJrE3/M3RtAHQngK2QYIA==
     jwtExpirationMs: 86400000
-trace: true
+trace: false

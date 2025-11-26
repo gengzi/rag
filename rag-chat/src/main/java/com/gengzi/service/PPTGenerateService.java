@@ -9,7 +9,7 @@ import reactor.core.publisher.Flux;
 
 public interface PPTGenerateService {
 
-    Flux<ChatMessageResponse> pptGenerate(ChatReq req) throws GraphRunnerException;
+    Flux<ServerSentEvent<ChatMessageResponse>> pptGenerate(ChatReq req) throws GraphRunnerException;
 
 
 }

@@ -21,4 +21,16 @@ public class ConversationDetailsResponse {
      * 下一页游标
      */
     private String nextCursor;
+
+//
+//    /**
+//     * 每条message的id信息
+//     */
+//    private String messageId;
+//
+//
+//    /**
+//     * 每条messageType信息
+//     */
+//    private String messageType;
 }

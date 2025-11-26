@@ -32,4 +32,22 @@ public class ChatReq {
      */
     private String agentId;
 
+
+    /**
+     * 续传：必填  消息id
+     */
+    private String messageId;
+
+
+    /**
+     * 续传：序号   需要从那个序号开始获取数据
+     */
+    private String seqNum;
+
+
+    /**
+     * 业务流转使用
+     */
+    private MessageContext messageContext;
+
 }

@@ -8,6 +8,7 @@ import com.gengzi.dao.repository.ConversationRepository;
 import com.gengzi.dao.repository.MessageRepository;
 import com.gengzi.enums.ChatMessageType;
 import com.gengzi.request.ChatReq;
+import com.gengzi.request.MessageContext;
 import com.gengzi.response.*;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -50,11 +51,12 @@ public class ChatStreamAspect {
     @Autowired
     private MessageRepository messageRepository;
 
-    private static com.gengzi.dao.Message bulidMessage(String messageRole, Conversation conversation, ChatMessage chatMessage) {
+    private static com.gengzi.dao.Message bulidMessage(String messageId, String messageRole, Conversation conversation, ChatMessage chatMessage) {
         com.gengzi.dao.Message messageRecord = new com.gengzi.dao.Message();
         messageRecord.setConversation(conversation.getId());
         messageRecord.setContent(JSONUtil.toJsonStr(chatMessage));
         messageRecord.setMessageRole(messageRole);
+        messageRecord.setMessageId(messageId);
         messageRecord.setCreatedTime(Instant.now());
         return messageRecord;
     }
@@ -70,8 +72,14 @@ public class ChatStreamAspect {
         // -------------------- 1. 记录请求入参 --------------------
         Object[] args = joinPoint.getArgs();
         String chatId = IdUtil.simpleUUID();
+        String chatResultId = IdUtil.simpleUUID();
         if (args.length > 0 && args[0] instanceof ChatReq req) {
             log.debug("聊天请求入参：conversationId={}, query={}", req.getConversationId(), req.getQuery());
+            // 先生成消息id （messageid）用于标识某次对话的消息，只插入记录表，记录用户消息，ai回复进行占位（不占位是不是也行？？），不插入记忆表
+            saveUserConversation(req.getConversationId(), chatId, req.getQuery(), req.getThreadId());
+            MessageContext messageContext = new MessageContext();
+            messageContext.setMessageId(chatResultId);
+            req.setMessageContext(messageContext);
         }
 
         // -------------------- 2. 执行原方法，获取流式响应 --------------------
@@ -166,8 +174,8 @@ public class ChatStreamAspect {
                     chatMemory.add(req.getConversationId(), messages);
 
                     // 设置聊天记录
-                    saveUserConversation(req.getConversationId(), chatId, req.getQuery(), req.getThreadId());
-                    saveAssistantConversation(req.getConversationId(), chatId, chatMessageResponses);
+
+                    saveAssistantConversation(req.getConversationId(), chatResultId, chatMessageResponses);
                 })
                 // 3. 处理异常
                 .doOnError(error -> {
@@ -210,7 +218,7 @@ public class ChatStreamAspect {
         } else if (targetContent instanceof AgentGraphRes targetAgent && sourceContent instanceof AgentGraphRes sourceAgent) {
             targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
             // 其他字段如 nodeName 应相同（由 canMerge 保证）
-        }else if(targetContent instanceof WebViewRes targetAgent && sourceContent instanceof WebViewRes sourceAgent){
+        } else if (targetContent instanceof WebViewRes targetAgent && sourceContent instanceof WebViewRes sourceAgent) {
             targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
         }
     }
@@ -226,7 +234,7 @@ public class ChatStreamAspect {
             LlmTextRes llmTextRes = new LlmTextRes();
             llmTextRes.setAnswer(question);
             llmTextRes.setReference(new RagReference());
-            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(threadId, llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode());
+            ChatMessageResponse ChatMessageResponse = new ChatMessageResponse(threadId, llmTextRes, ChatMessageType.LLM_RESPONSE.getTypeCode(), 0L, chatId);
             chatMessage.setContent(List.of(ChatMessageResponse));
             chatMessage.setRole(MessageType.USER.name());
             chatMessage.setConversationId(conversationId);
@@ -235,14 +243,14 @@ public class ChatStreamAspect {
                 List<ChatMessage> list = JSONUtil.toList(message, ChatMessage.class);
                 list.add(chatMessage);
                 conversation.setMessage(JSONUtil.toJsonStr(list));
-                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(), conversation, chatMessage);
+                com.gengzi.dao.Message messageRecord = bulidMessage(chatId, MessageType.USER.name(), conversation, chatMessage);
                 messageRepository.save(messageRecord);
                 conversationRepository.save(conversation);
             } else {
                 List<ChatMessage> chatMessages = new ArrayList<>();
                 chatMessages.add(chatMessage);
                 conversation.setMessage(JSONUtil.toJsonStr(chatMessages));
-                com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.USER.name(), conversation, chatMessage);
+                com.gengzi.dao.Message messageRecord = bulidMessage(chatId, MessageType.USER.name(), conversation, chatMessage);
                 messageRepository.save(messageRecord);
                 conversationRepository.save(conversation);
             }
@@ -267,7 +275,7 @@ public class ChatStreamAspect {
             List<ChatMessage> list = JSONUtil.toList(message, ChatMessage.class);
             list.add(chatMessage);
             conversation.setMessage(JSONUtil.toJsonStr(list));
-            com.gengzi.dao.Message messageRecord = bulidMessage(MessageType.ASSISTANT.name(), conversation, chatMessage);
+            com.gengzi.dao.Message messageRecord = bulidMessage(chatId, MessageType.ASSISTANT.name(), conversation, chatMessage);
             messageRepository.save(messageRecord);
             conversationRepository.save(conversation);
         } else {

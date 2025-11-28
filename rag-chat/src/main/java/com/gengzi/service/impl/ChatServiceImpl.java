@@ -39,6 +39,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -471,6 +472,10 @@ public class ChatServiceImpl implements ChatService {
             RStream<Object, Object> stream = redissonClient.getStream(String.format(MESSAGE_STREAM_KEY, messageId), StringCodec.INSTANCE);
             StreamMessageId streamMessageId = new StreamMessageId(Long.parseLong(msgSeqId.split("-")[0]), Long.parseLong(msgSeqId.split("-")[1]));
             while (true) {
+                if (sink.tryEmitComplete() == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
+                    logger.info("Sink 已取消，退出读取循环");
+                    break;
+                }
                 boolean hasData = false;
                 Map<StreamMessageId, Map<Object, Object>> range = stream.range(10, streamMessageId, StreamMessageId.MAX);
                 for (Map.Entry<StreamMessageId, Map<Object, Object>> streamMessageIdMapEntry : range.entrySet()) {
@@ -490,12 +495,9 @@ public class ChatServiceImpl implements ChatService {
 
                 // 如果没有数据，等待一段时间再继续
                 if (!hasData) {
-                    try {
-                        Thread.sleep(1000); // 等待100毫秒
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    Mono.delay(Duration.ofMillis(1000))
+                            .doOnCancel(() -> logger.info("延迟被取消"))
+                            .subscribe();
                 }
             }
         }
@@ -512,7 +514,6 @@ public class ChatServiceImpl implements ChatService {
      */
     @Override
     public Mono<ConversationDetailsResponse> chatMsgList(String conversationId, ChatMsgRecordReq recordReq) {
-        // TODO 需要改造，需要返回每条消息的状态，如果最新的一条消息还在进行中的，前端需要调用对话接口进行续传数据
         return Mono.fromCallable(() -> {
             RBucket<String> bucket = redissonClient.getBucket(String.format(MESSAGE_MAP_KEY_CONVERSATION, conversationId));
             String runMessageId = bucket.get();

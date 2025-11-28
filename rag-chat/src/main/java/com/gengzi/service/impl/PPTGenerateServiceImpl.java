@@ -7,12 +7,16 @@ import com.alibaba.cloud.ai.graph.RunnableConfig;
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
+import com.gengzi.rag.agent.myagent.agent.MyReActAgent;
+import com.gengzi.rag.agent.myagent.agent.PlannerAgent;
 import com.gengzi.request.ChatReq;
 import com.gengzi.response.ChatMessageResponse;
 import com.gengzi.response.LlmTextRes;
 import com.gengzi.service.PPTGenerateService;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
@@ -26,12 +30,35 @@ public class PPTGenerateServiceImpl implements PPTGenerateService {
     @Autowired
     private ReactAgent PPTReactAgent;
 
+
+
+    @Autowired
+    private ObjectFactory<MyReActAgent> reActAgentObjectFactory;
+
     /**
      * @param req
      * @return
      */
     @Override
     public Flux<ServerSentEvent<ChatMessageResponse>> pptGenerate(ChatReq req) throws GraphRunnerException {
+//        return pptAgent(req);
+        MyReActAgent object = reActAgentObjectFactory.getObject();
+        Flux<String> run = object.run(req.getQuery());
+        return run.map(
+                output -> {
+                    logger.info("pptGenerate output：{}", output);
+                    LlmTextRes llmTextRes = new LlmTextRes();
+                    llmTextRes.setAnswer(output);
+                    ChatMessageResponse chatMessageResponse = ChatMessageResponse.ofLlm(llmTextRes);
+                    chatMessageResponse.setThreadId(req.getThreadId());
+                    ServerSentEvent<ChatMessageResponse> build = ServerSentEvent.builder(chatMessageResponse).build();
+                    return build;
+                }
+        );
+    }
+
+    @NotNull
+    private Flux<ServerSentEvent<ChatMessageResponse>> pptAgent(ChatReq req) throws GraphRunnerException {
         String threadId = req.getThreadId();
         if (StrUtil.isBlank(req.getThreadId())) {
             threadId = String.format("%s_%s", req.getConversationId(), IdUtil.simpleUUID());

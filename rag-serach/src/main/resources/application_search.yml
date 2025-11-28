@@ -142,3 +142,8 @@ deepresearch:
         - /prompts/buildInteractiveHtmlPrompt.md
       tools:
 
+
+myagent:
+  planner:
+    sys_prompt: prompts/myagent/planner.md
+    next_step_prompt: prompts/myagent/planner_next_step.md

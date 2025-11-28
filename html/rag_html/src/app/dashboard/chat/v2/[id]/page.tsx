@@ -210,7 +210,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         });
 
         try {
-          await continueReading(runMessageId, 1);
+          await continueReading(runMessageId, 0);
           // 续读完成后清空runMessageId
           setRunMessageId('');
         } catch (error) {

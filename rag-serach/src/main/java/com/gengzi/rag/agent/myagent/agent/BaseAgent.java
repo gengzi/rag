@@ -1,8 +1,11 @@
 package com.gengzi.rag.agent.myagent.agent;
 
 import com.gengzi.rag.agent.myagent.memory.Memory;
+import jdk.jshell.JShell;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +23,8 @@ public abstract class BaseAgent {
     private int currentStep = 0;
     private String currentQuery;
 
+    Sinks.Many<String> sink;
+
     /**
      * 执行单个步骤
      *
@@ -35,51 +40,53 @@ public abstract class BaseAgent {
      * @return 执行结果汇总
      */
     public Flux<String> run(String query) {
-        memory = new Memory();
-        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
-
-
-        if (query == null || query.trim().isEmpty()) {
-            setState(AgentState.FAILED);
-            sink.tryEmitError(new RuntimeException("错误：查询参数不能为空"));
-        }
-
-        this.currentQuery = query;
-        setState(AgentState.RUNNING);
-
-        try {
-            while (currentStep < MAX_STEPS) {
-                String stepResult = step(query);
-
-                if (stepResult == null) {
-                    // step返回null表示正常完成
-                    setState(AgentState.COMPLETED);
-                    break;
-                }
-
-                result.add("步骤 " + (currentStep + 1) + ": " + stepResult);
-                sink.tryEmitNext("步骤 " + (currentStep + 1) + ": " + stepResult);
-                currentStep++;
-
-                // 检查是否需要在某个步骤后停止（可被子类重写）
-                if (shouldStop()) {
-                    setState(AgentState.COMPLETED);
-                    break;
-                }
+        sink = Sinks.many().multicast().onBackpressureBuffer();
+        Mono.fromRunnable(()->{
+            memory = new Memory();
+            if (query == null || query.trim().isEmpty()) {
+                setState(AgentState.FAILED);
+                sink.tryEmitError(new RuntimeException("错误：查询参数不能为空"));
             }
 
-            // 达到最大步骤限制
-            if (currentStep >= MAX_STEPS) {
-                setState(AgentState.COMPLETED);
-                result.add("已达到最大步骤限制(" + MAX_STEPS + "步)，自动完成执行");
+            this.currentQuery = query;
+            setState(AgentState.RUNNING);
+
+            try {
+                while (currentStep < MAX_STEPS) {
+                    String stepResult = step(query);
+
+                    if (AgentState.COMPLETED.name().equals(stepResult)) {
+                        // step返回null表示正常完成
+                        setState(AgentState.COMPLETED);
+                        sink.tryEmitComplete();
+                        break;
+                    }
+
+                    result.add("步骤 " + (currentStep + 1) + ": " + stepResult);
+                    sink.tryEmitNext("步骤 " + (currentStep + 1) + ": " + stepResult);
+                    currentStep++;
+
+                    // 检查是否需要在某个步骤后停止（可被子类重写）
+                    if (shouldStop()) {
+                        setState(AgentState.COMPLETED);
+                        break;
+                    }
+                }
+
+                // 达到最大步骤限制
+                if (currentStep >= MAX_STEPS) {
+                    setState(AgentState.COMPLETED);
+                    result.add("已达到最大步骤限制(" + MAX_STEPS + "步)，自动完成执行");
+                }
+
+            } catch (Exception e) {
+                setState(AgentState.FAILED);
+                result.add("执行失败: " + e.getMessage());
+                throw e;
             }
 
-        } catch (Exception e) {
-            setState(AgentState.FAILED);
-            result.add("执行失败: " + e.getMessage());
-            throw e;
-        }
 
+        }).subscribeOn(Schedulers.boundedElastic()).subscribe();
         return sink.asFlux();
     }
 

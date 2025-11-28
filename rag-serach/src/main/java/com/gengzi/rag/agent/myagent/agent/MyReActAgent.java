@@ -3,13 +3,14 @@ package com.gengzi.rag.agent.myagent.agent;
 import com.gengzi.rag.agent.deepresearch.util.ResourceUtil;
 import com.gengzi.rag.agent.myagent.config.MyAgentProperties;
 import com.gengzi.rag.agent.myagent.memory.Memory;
+import com.gengzi.rag.agent.myagent.tool.FileTool;
 import com.gengzi.rag.agent.myagent.tool.PlanTool;
+import com.gengzi.rag.tool.DateTimeTools;
+import com.gengzi.rag.tool.SearchTools;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
@@ -18,15 +19,18 @@ import org.springframework.ai.model.tool.DefaultToolCallingManager;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * ReAct Agent - 基于ReAct（Reasoning and Acting）框架的智能代理
@@ -35,7 +39,7 @@ import java.util.*;
 @Slf4j
 @Component
 @Scope("prototype")
-public class ReActAgent extends BaseAgent {
+public class MyReActAgent extends BaseAgent {
 
     @Autowired
     private ChatModel openAiChatModel;
@@ -46,6 +50,15 @@ public class ReActAgent extends BaseAgent {
     @Autowired
     private MyAgentProperties myAgentConfig;
 
+    @Autowired
+    private FileTool fileTool;
+
+    @Autowired
+    private DateTimeTools dateTimeTools;
+
+    @Autowired
+    private SearchTools searchTools;
+
 
     private String currentThought;
     private String currentAction;
@@ -55,6 +68,9 @@ public class ReActAgent extends BaseAgent {
 
     private Prompt prompt;
     private ChatResponse response;
+
+    private String queryStr;
+
 
     /**
      * 初始化方法
@@ -77,6 +93,7 @@ public class ReActAgent extends BaseAgent {
     @Override
     public String step(String query) {
         try {
+            queryStr = query.trim();
             // 检查是否达到最大迭代次数
             if (getCurrentStep() >= maxIterations) {
                 return "达到最大迭代次数 " + maxIterations + "，停止执行";
@@ -85,29 +102,21 @@ public class ReActAgent extends BaseAgent {
             // 添加用户查询到记忆
             if (memory.isEmpty()) {
                 memory.addUserMessage(query);
-                // 添加系统提示
-//                String systemPrompt = myAgentConfig.getPlanner().getSysPrompt();
-//                if (!systemPrompt.isEmpty()) {
-//                    memory.addSystemMessage(ResourceUtil.loadFileContent(systemPrompt));
-//                }
             }
 
             // Step 1: Think - 思考当前情况
             if (!think()) {
-                return "思考完成，不需要进一步行动";
+                return AgentState.COMPLETED.name();
             }
 
             // Step 2: Act - 执行具体行动
             String actionResult = act();
-            if (actionResult == null || actionResult.isEmpty()) {
-                return "行动执行完成";
-            }
-//
-//            // Step 3: Observe - 观察行动结果
-//            observe(actionResult);
+//            if (actionResult == null || actionResult.isEmpty()) {
+//                return "行动执行完成";
+//            }
 
-            return String.format("思考: %s\n行动: %s\n观察: %s",
-                    currentThought, currentAction, currentObservation);
+            return String.format("\n\n 思考: %s\n行动: %s",
+                    currentThought, currentAction);
 
         } catch (Exception e) {
             log.error("ReAct步骤执行失败", e);
@@ -123,47 +132,43 @@ public class ReActAgent extends BaseAgent {
      */
     public boolean think() {
         try {
-            String context = buildContext();
-            String thinkSystemPrompt = myAgentConfig.getPlanner().getSysPrompt();
-
-
-            ChatClient chatClient = ChatClient.builder(openAiChatModel)
-                    .defaultToolCallbacks(getToolCallbacks())
-                    .defaultOptions(
-                            OpenAiChatOptions.builder().internalToolExecutionEnabled(false).build()
-                    )
-                    .build();
+            String thinkSystemPrompt = myAgentConfig.getReact().getSysPrompt();
+            // 加入工具列表
+            List<ToolCallback> toolCallbacks = getToolCallbacks();
+            StringBuilder tools = new StringBuilder();
+            for (ToolCallback toolCallback : toolCallbacks) {
+                String name = toolCallback.getToolDefinition().name();
+                ToolDefinition toolDefinition = toolCallback.getToolDefinition();
+                tools.append("- ").append(name).append(": ").append(toolDefinition.description()).append("\n");
+            }
+            String sysPrompt = ResourceUtil.loadFileContent(thinkSystemPrompt);
+            sysPrompt = sysPrompt.replace("{{date}}", LocalDate.now().toString());
+            sysPrompt = sysPrompt.replace("{{tools}}", tools.toString());
 
             ChatOptions chatOptions = ToolCallingChatOptions.builder()
                     .internalToolExecutionEnabled(false)
                     .toolCallbacks(getToolCallbacks())
                     .build();
+            if (!MessageType.USER.equals(memory.getMessages().get(memory.getMessages().size() - 1).getMessageType())) {
+                String nextStepPrompt = myAgentConfig.getReact().getNextStepPrompt();
+                nextStepPrompt = ResourceUtil.loadFileContent(nextStepPrompt);
+                String replace = nextStepPrompt.replace("{{query}}", queryStr);
+                memory.addUserMessage(replace);
+            }
             ArrayList<Message> messages = new ArrayList<>();
-            messages.add(new SystemMessage(ResourceUtil.loadFileContent(thinkSystemPrompt)));
+            messages.add(new SystemMessage(sysPrompt));
             messages.addAll(memory.getMessages());
-
             prompt = new Prompt(messages, chatOptions);
 
             response = openAiChatModel.call(prompt);
-
-//            ChatResponse response = chatClient.prompt()
-//                    .messages(memory.getMessages())
-//                    .system(ResourceUtil.loadFileContent(thinkSystemPrompt))
-//                    .call()
-//                    .chatResponse();
-
-
             AssistantMessage output = response.getResult().getOutput();
-
             if (response.hasToolCalls()) {
                 // 记录思考过程
+                sink.tryEmitNext("\n\n" + output.getText());
                 memory.addMessage(output);
             } else {
-                memory.addMessage(output);
-                // 使用配置中的完成检测关键词
-                if (myAgentConfig.getPlanner().containsCompletionKeyword(output.getText())) {
-                    return false;
-                }
+                return false;
+
             }
             return true;
 
@@ -186,16 +191,10 @@ public class ReActAgent extends BaseAgent {
             Message message = toolExecutionResult.conversationHistory().get(toolExecutionResult.conversationHistory().size() - 1);
             // 记录行动结果
             memory.addMessage(message);
-            Optional<Map.Entry<String, PlanTool.Plan>> first = planTool.getObject().planStore.entrySet().stream().findFirst();
-            if (first.isPresent()) {
-                Map.Entry<String, PlanTool.Plan> planEntry = first.get();
-                PlanTool.Plan value = planEntry.getValue();
-                for (String step : value.getSteps()) {
-                    // 获取还在进行中的步骤
-                    return step;
-                }
-            }
-            return message.getText();
+            sink.tryEmitNext("\n\n" + ((ToolResponseMessage) message).toString());
+            return ((ToolResponseMessage) message).toString();
+
+
         } catch (Exception e) {
             log.error("行动阶段执行失败", e);
             currentAction = "行动失败: " + e.getMessage();
@@ -278,7 +277,11 @@ public class ReActAgent extends BaseAgent {
     private List<ToolCallback> getToolCallbacks() {
         List<ToolCallback> callbacks = new ArrayList<>();
         // 添加计划工具的回调
-        callbacks.addAll(Arrays.stream(ToolCallbacks.from(planTool.getObject())).toList());
+//        callbacks.addAll(Arrays.stream(ToolCallbacks.from(planTool.getObject())).toList());
+        // 添加文件工具
+        callbacks.addAll(Arrays.stream(ToolCallbacks.from(fileTool)).toList());
+        callbacks.addAll(Arrays.stream(ToolCallbacks.from(searchTools)).toList());
+        callbacks.addAll(Arrays.stream(ToolCallbacks.from(dateTimeTools)).toList());
 
         return callbacks;
     }

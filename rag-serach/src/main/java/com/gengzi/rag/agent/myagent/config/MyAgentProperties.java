@@ -18,12 +18,55 @@ public class MyAgentProperties {
      */
     private PlannerProperties planner = new PlannerProperties();
 
+    private ReactProperties react = new ReactProperties();
+
 
     private ThinkPhaseProperties taskExecutor = new ThinkPhaseProperties();
 
     private ActPhaseProperties act = new ActPhaseProperties();
 
     private ObservePhaseProperties observe = new ObservePhaseProperties();
+
+
+    @Data
+    public static class ReactProperties {
+
+        /**
+         * 系统提示词文件路径
+         */
+        private String sysPrompt;
+
+        /**
+         * 下一步提示词文件路径
+         */
+        private String nextStepPrompt;
+
+        /**
+         * 最大迭代次数
+         */
+        private int maxIterations = 20;
+
+        /**
+         * 最大消息历史数量
+         */
+        private int maxMessageHistory = 500;
+
+        /**
+         * 是否启用工具调用
+         */
+        private boolean enableToolCalling = true;
+
+        /**
+         * 任务完成检测关键词
+         */
+        private String[] completionKeywords = {
+                "TASK_COMPLETED",
+                "任务完成",
+                "已完成",
+                "任务结束"
+        };
+
+    }
 
     /**
      * 规划器配置

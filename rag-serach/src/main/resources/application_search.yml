@@ -147,3 +147,6 @@ myagent:
   planner:
     sys_prompt: prompts/myagent/planner.md
     next_step_prompt: prompts/myagent/planner_next_step.md
+  react:
+    sys_prompt: prompts/myagent/react.md
+    next_step_prompt: prompts/myagent/react_next_step.md

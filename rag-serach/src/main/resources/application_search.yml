@@ -45,7 +45,7 @@ chatmodel:
   baseUrl: https://api.siliconflow.cn
   model: deepseek-ai/DeepSeek-V3
   ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
-  temperature: 0.7
+  temperature: 0.5
 rerankermodel:
   apiKey: sk-wkekvkigaytxuokxdcbrcimuugyawdnxevihgwvxwerdmzqa
   baseUrl: https://api.siliconflow.cn
@@ -66,6 +66,8 @@ react:
       model: deepseek-ai/DeepSeek-V3
       instruction: /prompts/agent/pptGenerate.md
 
+excalidraw:
+  sys_prompt: prompts/agent/sys_excalidraw_prompt.md
 
 
 deepresearch:

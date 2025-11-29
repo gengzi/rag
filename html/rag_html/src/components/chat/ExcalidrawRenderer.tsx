@@ -124,21 +124,13 @@ const ExcalidrawRenderer: React.FC<ExcalidrawRendererProps> = ({ data }) => {
   };
 
   return (
-    <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-white transition-all duration-300">
-      <div className="flex justify-between items-center text-sm text-gray-600 mb-2">
-        <div className="flex items-center gap-1">
-          <span>🎨 绘图内容</span>
-          <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">已完成</span>
-        </div>
-        {renderData && renderData.elements && (
-          <span className="text-xs text-gray-500">
-            包含 {renderData.elements.length} 个元素
-          </span>
-        )}
+    <div className="mt-4 border border-gray-200 rounded-lg bg-white">
+      <div className="text-sm text-gray-600 mb-2">
+        <span>🎨 绘图内容</span>
       </div>
 
       <div 
-        className={`border rounded transition-all duration-300 overflow-hidden relative ${isLoading ? 'opacity-50' : 'opacity-100'} h-[400px] md:h-[300px]`}
+        className={`border rounded transition-all duration-300 overflow-hidden relative ${isLoading ? 'opacity-50' : 'opacity-100'} h-[500px] md:h-[400px]`}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">

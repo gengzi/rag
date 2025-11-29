@@ -111,64 +111,53 @@ const AssistantMessage = memo<{
   const messageContent = useMemo(() => {
     // 主要内容渲染
     const renderMainContent = () => {
-      // 优先使用AgentAnswer渲染processFlow（保持原有功能）
+      // 检查processFlow中是否有excalidraw节点
+      let excalidrawData = null;
+      let cleanProcessFlow = processFlow;
+      
+      // 如果有processFlow且包含excalidraw节点，提取数据并创建干净的processFlow
       if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
-        // 检查processFlow中是否包含excalidraw节点
-        const hasExcalidrawNode = processFlow.nodes.some(
+        const excalidrawNode = processFlow.nodes.find(
           (node: any) => node.type === 'excalidraw' || node.messageType === 'excalidraw'
         );
         
-        // 检查是否有独立的excalidraw内容
-        const hasIndependentExcalidraw = excalidrawContent && excalidrawContent.messageType === 'excalidraw';
-        
-        // 检查是否有独立的web内容
-        const hasWebContent = webContent && webContent.messageType === 'web';
-        
-        // 如果同时有processFlow和独立的excalidraw或web内容，
-        // 先渲染processFlow，然后渲染独立的内容
-        if (hasExcalidrawNode || hasIndependentExcalidraw || hasWebContent) {
-          return (
-            <>
-              {/* 先渲染完整的processFlow，保持原有流示输出 */}
-              <AgentAnswer
-                processFlow={processFlow}
-                content={content}
-                citations={citations}
-                ragReference={ragReference}
-              />
-              
-              {/* 如果有独立的excalidraw内容且不在processFlow中，额外渲染 */}
-              {hasIndependentExcalidraw && !hasExcalidrawNode && (
-                <ExcalidrawRenderer data={excalidrawContent.data} />
-              )}
-            </>
-          );
-        } else {
-          // 正常渲染processFlow
-          return (
+        if (excalidrawNode && excalidrawNode.data) {
+          excalidrawData = excalidrawNode.data;
+          // 创建新的processFlow副本，移除excalidraw节点
+          cleanProcessFlow = {
+            ...processFlow,
+            nodes: processFlow.nodes.filter(
+              (node: any) => !(node.type === 'excalidraw' || node.messageType === 'excalidraw')
+            )
+          };
+        }
+      }
+      
+      // 优先使用独立的excalidraw内容
+      if (excalidrawContent && excalidrawContent.messageType === 'excalidraw') {
+        excalidrawData = excalidrawContent.data;
+      }
+      
+      // 原始逻辑：如果有processFlow，使用AgentAnswer
+      if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
+        return (
+          <>
+            {/* 如果有excalidraw数据，单独渲染它 */}
+            {excalidrawData && (
+              <ExcalidrawRenderer data={excalidrawData} />
+            )}
+            
+            {/* 使用干净的processFlow（移除了excalidraw节点）渲染剩余内容 */}
             <AgentAnswer
-              processFlow={processFlow}
+              processFlow={cleanProcessFlow}
               content={content}
               citations={citations}
               ragReference={ragReference}
             />
-          );
-        }
-      }
-      // 如果没有processFlow，但有独立的excalidraw内容
-      else if (excalidrawContent && excalidrawContent.messageType === 'excalidraw') {
-        return (
-          <>
-            {content && (
-              <div className="mb-4">
-                <Answer content={content} citations={citations} ragReference={ragReference} />
-              </div>
-            )}
-            <ExcalidrawRenderer data={excalidrawContent.data} />
           </>
         );
       }
-      // 如果有独立的web内容
+      // 如果有独立的web内容，显示web内容
       else if (webContent && webContent.messageType === 'web') {
         return (
           <>
@@ -178,6 +167,19 @@ const AssistantMessage = memo<{
               </div>
             )}
             <WebContentRenderer content={webContent.content} />
+          </>
+        );
+      }
+      // 如果只有excalidraw内容
+      else if (excalidrawData) {
+        return (
+          <>
+            {content && (
+              <div className="mb-4">
+                <Answer content={content} citations={citations} ragReference={ragReference} />
+              </div>
+            )}
+            <ExcalidrawRenderer data={excalidrawData} />
           </>
         );
       }

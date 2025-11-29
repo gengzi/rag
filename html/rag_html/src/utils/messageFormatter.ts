@@ -12,7 +12,7 @@ interface ProcessNode {
   order?: number;
   displayTitle?: string;
   threadId?: string;
-  data?: any; // 用于存储Excalidraw JSON数据
+  data?: any; // 用于存储Excalidraw JSON数据或其他特定类型数据
 }
 
 interface ProcessFlow {
@@ -495,10 +495,36 @@ export const processStreamData = (
       updatedWebContentBuffer = ''; // 切换到excalidraw模式时清空web缓冲区
       const excalidrawContentData = data.content || {};
       const excalidrawNodeName = excalidrawContentData.nodeName || 'excalidraw-output';
-      const nodeExcalidrawData = excalidrawContentData.data || excalidrawContentData;
       
-      // 累积excalidraw数据
-      updatedExcalidrawData = nodeExcalidrawData;
+      // 确保updatedExcalidrawData是一个完整的Excalidraw数据对象，包含elements数组
+      if (!updatedExcalidrawData) {
+        updatedExcalidrawData = { elements: [], appState: {} };
+      }
+      
+      // 处理流式返回的数据，根据用户提供的格式，从content中获取数据
+      // 假设data.content可能包含一个JSON字符串或直接的对象
+      let newElements = [];
+      if (excalidrawContentData.content) {
+        // 如果content是字符串，尝试解析为JSON
+        if (typeof excalidrawContentData.content === 'string') {
+          try {
+            const parsedContent = JSON.parse(excalidrawContentData.content);
+            newElements = parsedContent.elements || [];
+          } catch (e) {
+            // 处理解析错误
+            console.error('Failed to parse excalidraw content:', e);
+          }
+        } 
+        // 如果content已经是对象，直接使用
+        else if (typeof excalidrawContentData.content === 'object' && excalidrawContentData.content.elements) {
+          newElements = excalidrawContentData.content.elements;
+        }
+      }
+      
+      // 累积元素数据
+      if (Array.isArray(newElements) && newElements.length > 0) {
+        updatedExcalidrawData.elements = [...(updatedExcalidrawData.elements || []), ...newElements];
+      }
       
       // 查找是否已存在相同ID的excalidraw节点
       const existingExcalidrawNodeIndex = processNodes.findIndex(node =>
@@ -506,7 +532,7 @@ export const processStreamData = (
       );
       
       if (existingExcalidrawNodeIndex >= 0) {
-        // 更新现有excalidraw节点的内容
+        // 更新现有excalidraw节点的数据
         updatedProcessNodes = updatedProcessNodes.map((node, index) =>
           index === existingExcalidrawNodeIndex
             ? { ...node, data: updatedExcalidrawData }

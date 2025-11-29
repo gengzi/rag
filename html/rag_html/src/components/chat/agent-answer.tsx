@@ -8,9 +8,10 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Palette } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Globe, ChevronDown, ChevronRight, File, Eye } from "lucide-react";
+import ExcalidrawRenderer from './ExcalidrawRenderer';
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -128,7 +129,7 @@ const Code = ({ className, children, ...props }: any) => {
 
 /**
  * 流程节点接口定义
- * type: 节点类型，agent表示代理节点，llm表示语言模型节点
+ * type: 节点类型，agent表示代理节点，llm表示语言模型节点，web表示网页内容节点，excalidraw表示绘图内容节点
  * id: 节点唯一标识
  * name: 节点名称
  * status: 节点状态
@@ -136,10 +137,12 @@ const Code = ({ className, children, ...props }: any) => {
  * description: 可选的节点描述
  * content: 可选的节点内容，主要用于llm类型节点
  * order: 可选的排序字段，用于节点排序
- * reference: 可选的引用信息
+ * displayTitle?: 可选的显示标题
+ * reference?: 可选的引用信息
+ * data?: 可选的数据字段，主要用于excalidraw类型节点
  */
 interface ProcessNode {
-  type: 'agent' | 'llm' | 'web';
+  type: 'agent' | 'llm' | 'web' | 'excalidraw';
   id: string;
   name: string;
   status: 'active' | 'completed' | 'pending';
@@ -147,7 +150,7 @@ interface ProcessNode {
   description?: string;
   content?: string;
   order?: number;
-  displayTitle?: string; // 新增：用于节点名称展示的标题
+  displayTitle?: string;
   reference?: Array<{
     chunkId: string;
     documentId: string;
@@ -159,6 +162,7 @@ interface ProcessNode {
     contentType: string;
     imageUrl: string | null;
   }>;
+  data?: any; // 用于存储excalidraw数据
 }
 
 /**
@@ -256,7 +260,37 @@ const AgentAnswer: React.FC<AgentAnswerProps> = React.memo(({
     };
 
     // 根据节点类型选择不同的渲染方式
-    if (node.type === 'web') {
+    if (node.type === 'excalidraw') {
+      // 渲染excalidraw类型节点
+      return (
+        <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">
+          <div className="flex gap-4 items-start">
+            {/* 节点图标/状态 - 显示Palette图标 */}
+            <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${statusColors[node.status]}`}>
+              <Palette className="h-5 w-5" />
+            </div>
+
+            {/* 节点内容 - 直接使用ExcalidrawRenderer组件渲染 */}
+            <div className="flex-grow w-full">
+              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-medium text-sm">{node.displayTitle || '绘图内容'}</h4>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[node.status]}`}>
+                    {node.status === 'active' ? '生成中' :
+                     node.status === 'completed' ? '已完成' : '待生成'}
+                  </span>
+                </div>
+                
+                {/* 使用ExcalidrawRenderer组件渲染绘图内容 */}
+                {node.data && (
+                  <ExcalidrawRenderer data={node.data} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (node.type === 'web') {
       // 渲染web类型节点 - 使用弹窗展示内容
       return (
           <div key={node.id} className="animate-fadeIn bg-gray-50 p-4 rounded-lg mb-4">

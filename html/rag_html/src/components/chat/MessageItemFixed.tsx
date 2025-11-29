@@ -109,37 +109,9 @@ const AssistantMessage = memo<{
   }, [timestamp]);
 
   const messageContent = useMemo(() => {
-    // 如果有processFlow（包含agent、text、web节点），优先使用AgentAnswer显示完整流程
+    // 如果有processFlow（包含agent、text、web、excalidraw节点），优先使用AgentAnswer显示完整流程
+    // AgentAnswer现在已经支持直接渲染excalidraw节点
     if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
-      // 检查processFlow中是否包含excalidraw节点
-      const hasExcalidrawNode = processFlow.nodes.some((node: any) => node.type === 'excalidraw');
-      
-      if (hasExcalidrawNode) {
-        // 渲染主要内容
-        const mainContent = (
-          <AgentAnswer
-            processFlow={processFlow}
-            content={content}
-            citations={citations}
-            ragReference={ragReference}
-          />
-        );
-        
-        // 提取并渲染excalidraw节点内容
-        const excalidrawRenderers = processFlow.nodes
-          .filter((node: any) => node.type === 'excalidraw' && node.data)
-          .map((node: any, index: number) => (
-            <ExcalidrawRenderer key={index} data={node.data} />
-          ));
-        
-        return (
-          <>
-            {mainContent}
-            {excalidrawRenderers}
-          </>
-        );
-      }
-      
       return (
         <AgentAnswer
           processFlow={processFlow}

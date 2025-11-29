@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Excalidraw } from '@excalidraw/excalidraw';
-import '@excalidraw/excalidraw/index.css';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+
+// 动态导入Excalidraw组件，避免SSR错误
+const Excalidraw = React.lazy(() => import('@excalidraw/excalidraw').then(module => ({ default: module.Excalidraw })));
+
+// 条件导入CSS，只在客户端环境导入
+if (typeof window !== 'undefined') {
+  import('@excalidraw/excalidraw/index.css');
+}
 
 interface ExcalidrawRendererProps {
   data?: any; // Excalidraw JSON格式数据
@@ -29,48 +35,123 @@ const ExcalidrawRenderer: React.FC<ExcalidrawRendererProps> = ({ data }) => {
     }
 
     try {
-      // 尝试解析数据的不同可能格式
-      let parsedData = null;
+      console.log('输入数据类型:', typeof inputData);
+      console.log('输入数据结构:', JSON.stringify(inputData).substring(0, 200) + '...');
       
-      // 1. 检查data是否已经是对象格式
+      // 1. 直接检查是否已经是标准Excalidraw数据格式
+      if (inputData.elements && Array.isArray(inputData.elements)) {
+        console.log('找到直接的Excalidraw数据格式');
+        return inputData;
+      }
+      
+      // 2. 处理JSON字符串格式
+      if (typeof inputData === 'string') {
+        console.log('处理JSON字符串格式输入');
+        try {
+          const parsedData = JSON.parse(inputData);
+          return processExcalidrawData(parsedData);
+        } catch (parseError) {
+          console.error('解析JSON字符串失败:', parseError);
+          // 尝试修复转义字符问题
+          try {
+            const fixedContent = inputData.replace(/\n/g, '\\n');
+            const parsedData = JSON.parse(fixedContent);
+            return processExcalidrawData(parsedData);
+          } catch (fixedParseError) {
+            console.error('修复后仍解析失败:', fixedParseError);
+          }
+          return null;
+        }
+      }
+      
+      // 3. 处理对象格式
       if (typeof inputData === 'object' && inputData !== null) {
-        parsedData = inputData;
-      }
-      // 2. 检查data是否是JSON字符串
-      else if (typeof inputData === 'string') {
-        parsedData = JSON.parse(inputData);
+        // 3.1 处理excalidraw节点
+        if (inputData.nodeName === 'excalidraw' && inputData.content) {
+          console.log('找到excalidraw节点');
+          return processExcalidrawData(inputData.content);
+        }
+        
+        // 3.2 处理messageType为excalidraw的数据
+        if (inputData.messageType === 'excalidraw' && inputData.content) {
+          console.log('找到messageType为excalidraw的数据');
+          return processExcalidrawData(inputData.content);
+        }
+        
+        // 3.3 处理content字段（可能是数组或对象）
+        if (inputData.content) {
+          console.log('处理content字段');
+          // 无论content是数组还是对象，都直接递归处理
+          // 这样可以避免Array.isArray判断错误的问题
+          const contentResult = processExcalidrawData(inputData.content);
+          if (contentResult) return contentResult;
+        }
+        
+        // 3.4 处理data字段
+        if (inputData.data) {
+          console.log('处理data字段');
+          const dataResult = processExcalidrawData(inputData.data);
+          if (dataResult) return dataResult;
+        }
+        
+        // 3.5 处理数组格式
+        if (Array.isArray(inputData)) {
+          console.log('处理数组格式');
+          for (const item of inputData) {
+            const itemResult = processExcalidrawData(item);
+            if (itemResult) return itemResult;
+          }
+        }
+        
+        // 3.6 遍历对象的所有键查找嵌套数据
+        console.log('遍历对象键查找嵌套数据');
+        for (const key in inputData) {
+          if (inputData.hasOwnProperty(key) && typeof inputData[key] === 'object' && inputData[key] !== null) {
+            // 跳过已经检查过的字段
+            if (key !== 'content' && key !== 'data') {
+              const nestedResult = processExcalidrawData(inputData[key]);
+              if (nestedResult) {
+                console.log(`从键 ${key} 中找到Excalidraw数据`);
+                return nestedResult;
+              }
+            }
+          }
+        }
       }
       
-      if (!parsedData) {
-        return null;
-      }
-      
-      // 处理不同的嵌套结构，确保返回正确格式的数据
-      if (parsedData.elements && Array.isArray(parsedData.elements)) {
-        return parsedData;
-      } else if (parsedData.data && parsedData.data.elements) {
-        return parsedData.data;
-      }
-      
+      console.log('未找到有效的Excalidraw数据结构');
       return null;
     } catch (error) {
-      console.error('处理Excalidraw数据失败:', error);
+      console.error('处理Excalidraw数据时出错:', error);
       return null;
     }
   }, []);
 
   // 当数据变化时，处理并设置渲染数据
-  useEffect(() => {
-    const processedData = processExcalidrawData(data);
-    setRenderData(processedData);
-    
-    // 模拟加载完成
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [data, processExcalidrawData]);
+    useEffect(() => {
+      console.log('Excalidraw数据发生变化:', data);
+      
+      // 使用try-catch确保数据处理不会导致组件崩溃
+      try {
+        if (data) {
+          const processedData = processExcalidrawData(data);
+          console.log('处理后的Excalidraw数据:', processedData);
+          setRenderData(processedData);
+        } else {
+          setRenderData(null);
+        }
+      } catch (error) {
+        console.error('设置渲染数据时出错:', error);
+        setRenderData(null);
+      }
+      
+      // 模拟加载完成
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }, [data, processExcalidrawData]);
 
   // 服务器端渲染时返回占位符
   if (!isClient) {
@@ -140,7 +221,13 @@ const ExcalidrawRenderer: React.FC<ExcalidrawRendererProps> = ({ data }) => {
             </div>
           </div>
         )}
-        <Excalidraw {...excalidrawOptions} />
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-gray-500">加载Excalidraw组件...</span>
+          </div>
+        }>
+          <Excalidraw {...excalidrawOptions} />
+        </Suspense>
       </div>
     </div>
   );

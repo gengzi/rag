@@ -27,6 +27,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   const [chatTitle, setChatTitle] = useState("新对话");
   const [showPptTag, setShowPptTag] = useState(false);
   const [showDeepResearchTag, setShowDeepResearchTag] = useState(false);
+  const [showExcalidrawTag, setShowExcalidrawTag] = useState(false);
   const [runMessageId, setRunMessageId] = useState<string>(''); // 正在输出的消息ID
   const [isContinueReading, setIsContinueReading] = useState(false); // 是否正在续读
 
@@ -161,11 +162,24 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
     if (!input.trim() || isLoading) return;
 
     try {
-      const agentId = showPptTag ? "PPTGenerate" : showDeepResearchTag ? "DeepResearch" : "";
+      let agentId = "";
+      if (showPptTag) {
+        agentId = "PPTGenerate";
+      } else if (showDeepResearchTag) {
+        agentId = "DeepResearch";
+      } else if (showExcalidrawTag) {
+        agentId = "Excalidraw";
+      }
+      
       await sendMessage(input, agentId);
 
       // 清空输入框
       setInput('');
+
+      // 重置所有标签
+      setShowPptTag(false);
+      setShowDeepResearchTag(false);
+      setShowExcalidrawTag(false);
 
       // 重新聚焦到输入框
       setTimeout(() => {
@@ -301,8 +315,10 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
           loadingChat={loadingChat}
           showPptTag={showPptTag}
           showDeepResearchTag={showDeepResearchTag}
+          showExcalidrawTag={showExcalidrawTag}
           onPptTagToggle={() => setShowPptTag(!showPptTag)}
           onDeepResearchTagToggle={() => setShowDeepResearchTag(!showDeepResearchTag)}
+          onExcalidrawTagToggle={() => setShowExcalidrawTag(!showExcalidrawTag)}
         />
       </div>
     </DashboardLayout>

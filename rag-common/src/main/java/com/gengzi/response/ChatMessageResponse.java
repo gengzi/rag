@@ -88,5 +88,13 @@ public class ChatMessageResponse {
         return msg;
     }
 
+    // 构造 Agent 消息
+    public static ChatMessageResponse ofExcalidraw(ExcaildrawWebViewRes excaildrawWebViewRes) {
+        ChatMessageResponse msg = new ChatMessageResponse();
+        msg.messageType = MessageType.EXCALIDRAW.getTypeCode();
+        msg.content = excaildrawWebViewRes;
+        return msg;
+    }
+
 
 }

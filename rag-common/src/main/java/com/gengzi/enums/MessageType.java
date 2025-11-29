@@ -28,6 +28,13 @@ public enum MessageType {
      */
     RLOCK("rlock", "正在对话中，请刷新页面"),
 
+
+    /**
+     * 智能体（Agent）执行后的综合回复，包含思考链、工具调用等
+     */
+    EXCALIDRAW("excalidraw", "绘图"),
+
+
     /**
      * 用户输入的消息
      */

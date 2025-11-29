@@ -2,6 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { User, Bot } from 'lucide-react';
 import Answer from './answer';
 import AgentAnswer from './agent-answer';
+import ExcalidrawRenderer from './ExcalidrawRenderer';
 import { Message } from '@/utils/messageFormatter';
 
 interface MessageItemProps {
@@ -101,7 +102,8 @@ const AssistantMessage = memo<{
   ragReference?: any;
   processFlow?: any;
   webContent?: any;
-}>(({ content, timestamp, citations, ragReference, processFlow, webContent }) => {
+  excalidrawContent?: any;
+}>(({ content, timestamp, citations, ragReference, processFlow, webContent, excalidrawContent }) => {
   const formattedTime = useMemo(() => {
     return new Date(timestamp).toLocaleTimeString();
   }, [timestamp]);
@@ -109,6 +111,35 @@ const AssistantMessage = memo<{
   const messageContent = useMemo(() => {
     // 如果有processFlow（包含agent、text、web节点），优先使用AgentAnswer显示完整流程
     if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
+      // 检查processFlow中是否包含excalidraw节点
+      const hasExcalidrawNode = processFlow.nodes.some((node: any) => node.type === 'excalidraw');
+      
+      if (hasExcalidrawNode) {
+        // 渲染主要内容
+        const mainContent = (
+          <AgentAnswer
+            processFlow={processFlow}
+            content={content}
+            citations={citations}
+            ragReference={ragReference}
+          />
+        );
+        
+        // 提取并渲染excalidraw节点内容
+        const excalidrawRenderers = processFlow.nodes
+          .filter((node: any) => node.type === 'excalidraw' && node.data)
+          .map((node: any, index: number) => (
+            <ExcalidrawRenderer key={index} data={node.data} />
+          ));
+        
+        return (
+          <>
+            {mainContent}
+            {excalidrawRenderers}
+          </>
+        );
+      }
+      
       return (
         <AgentAnswer
           processFlow={processFlow}
@@ -116,6 +147,19 @@ const AssistantMessage = memo<{
           citations={citations}
           ragReference={ragReference}
         />
+      );
+    }
+    // 如果有独立的excalidraw内容（没有processFlow），显示excalidraw内容
+    else if (excalidrawContent && excalidrawContent.messageType === 'excalidraw') {
+      return (
+        <>
+          {content && (
+            <div className="mb-4">
+              <Answer content={content} citations={citations} ragReference={ragReference} />
+            </div>
+          )}
+          <ExcalidrawRenderer data={excalidrawContent.data} />
+        </>
       );
     }
     // 如果有独立的web内容（没有processFlow），显示web内容
@@ -135,7 +179,7 @@ const AssistantMessage = memo<{
     else {
       return <Answer content={content} citations={citations} ragReference={ragReference} />;
     }
-  }, [content, citations, ragReference, processFlow, webContent]);
+  }, [content, citations, ragReference, processFlow, webContent, excalidrawContent]);
 
   return (
     <div className="flex-1">
@@ -191,6 +235,7 @@ const MessageItemFixed: React.FC<MessageItemProps> = memo(({ message }) => {
           ragReference={message.ragReference}
           processFlow={message.processFlow}
           webContent={message.webContent}
+          excalidrawContent={message.excalidrawContent}
         />
       </div>
     );
@@ -224,6 +269,13 @@ const areMessageEqual = (prevProps: MessageItemProps, nextProps: MessageItemProp
   const prevWebContentStr = JSON.stringify(prevMsg.webContent);
   const nextWebContentStr = JSON.stringify(nextMsg.webContent);
   if (prevWebContentStr !== nextWebContentStr) {
+    return false;
+  }
+  
+  // 深度比较excalidrawContent
+  const prevExcalidrawContentStr = JSON.stringify(prevMsg.excalidrawContent);
+  const nextExcalidrawContentStr = JSON.stringify(nextMsg.excalidrawContent);
+  if (prevExcalidrawContentStr !== nextExcalidrawContentStr) {
     return false;
   }
 

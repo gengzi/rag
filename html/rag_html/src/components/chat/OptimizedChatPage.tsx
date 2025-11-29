@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 
 import { api, cacheControl } from "@/lib/api";
 import { getChatHistory } from '@/lib/services/chatService';
-import { parseMessagesFromAPI, processStreamData, StreamDataProcessor } from '@/utils/messageFormatter';
+import { parseMessagesFromAPI, processStreamData, StreamDataProcessor, ProcessNode } from '@/utils/messageFormatter';
 import { useAccessibility } from '@/hooks/useAccessibility';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useKeyboardNavigation, CHAT_SHORTCUTS } from '@/hooks/useKeyboardNavigation';
@@ -249,12 +249,22 @@ export default function OptimizedChatPage({ params }: { params: { id: string } }
       const assistantMessageId = `msg-${Date.now()}-assistant-${Math.random().toString(36).substr(2, 9)}`;
 
       // 流式数据状态
-      let streamState = {
+      let streamState: {
+        textContentBuffer: string;
+        processNodes: ProcessNode[];
+        processEdges: Array<{ from: string; to: string }>;
+        lastMessageType: 'text' | 'agent' | 'web' | 'excalidraw' | null;
+        lastNodeName: string | null;
+        webContentBuffer: string;
+        excalidrawData: any;
+      } = {
         textContentBuffer: '',
         processNodes: [],
         processEdges: [],
-        lastMessageType: null as 'text' | 'agent' | 'web' | null,
-        lastNodeName: null as string | null,
+        lastMessageType: null,
+        lastNodeName: null,
+        webContentBuffer: '',
+        excalidrawData: null,
       };
 
       let hasWebContent = false;
@@ -299,6 +309,8 @@ export default function OptimizedChatPage({ params }: { params: { id: string } }
               processEdges: result.updatedProcessEdges,
               lastMessageType: result.updatedLastMessageType,
               lastNodeName: result.updatedLastNodeName,
+              webContentBuffer: result.updatedWebContentBuffer,
+              excalidrawData: result.updatedExcalidrawData,
             };
 
             if (result.hasWebContent) {
@@ -395,7 +407,7 @@ export default function OptimizedChatPage({ params }: { params: { id: string } }
    */
   const handleBack = useCallback(() => {
     // 清除相关缓存
-    cacheControl.clear('/chat/msg');
+    cacheControl.clear();
     router.push('/dashboard/chat');
   }, [router]);
 
@@ -475,8 +487,6 @@ export default function OptimizedChatPage({ params }: { params: { id: string } }
               message={message}
               data-message="true"
               data-message-id={message.id}
-              tabIndex={0}
-              role="article"
               aria-label={`${message.role === 'user' ? '用户' : 'AI助手'}消息`}
             />
           ))}

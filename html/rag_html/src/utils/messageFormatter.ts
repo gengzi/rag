@@ -2,7 +2,7 @@
  * 消息处理相关的类型定义
  */
 interface ProcessNode {
-  type: 'agent' | 'llm' | 'web';
+  type: 'agent' | 'llm' | 'web' | 'excalidraw';
   id: string;
   name: string;
   status: 'active' | 'completed' | 'pending';
@@ -12,6 +12,7 @@ interface ProcessNode {
   order?: number;
   displayTitle?: string;
   threadId?: string;
+  data?: any; // 用于存储Excalidraw JSON数据
 }
 
 interface ProcessFlow {
@@ -25,6 +26,12 @@ interface WebContent {
   nodeName?: string;
 }
 
+interface ExcalidrawContent {
+  messageType: 'excalidraw';
+  data: any; // Excalidraw JSON格式数据
+  nodeName?: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -35,6 +42,7 @@ interface Message {
   processFlow?: ProcessFlow;
   isAgent?: boolean;
   webContent?: WebContent;
+  excalidrawContent?: ExcalidrawContent;
 }
 
 interface Citation {
@@ -124,6 +132,9 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
 
       // 检查是否有web内容
       const webContentForMessage = extractWebContent(msg.content);
+      
+      // 检查是否有excalidraw内容
+      const excalidrawContentForMessage = extractExcalidrawContent(msg.content);
 
       // 改进角色判断逻辑，支持多种可能的格式
       let messageRole = 'assistant'; // 默认为assistant
@@ -141,13 +152,14 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
       formattedMessages.push({
         id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         content: typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent),
-        role: messageRole,
+        role: messageRole as 'user' | 'assistant',
         createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
         citations: firstTextContent?.content?.reference?.reference || [],
         ragReference: ragReference,
         processFlow: processFlow,
         isAgent: msg.content.some((item: any) => item.messageType === 'agent'),
-        webContent: webContentForMessage
+        webContent: webContentForMessage,
+        excalidrawContent: excalidrawContentForMessage
       });
     } else if (msg.content && typeof msg.content === 'string') {
       // 改进角色判断逻辑，支持多种可能的格式
@@ -167,7 +179,7 @@ export const parseMessagesFromAPI = (data: any): Message[] => {
       formattedMessages.push({
         id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         content: msg.content,
-        role: messageRole,
+        role: messageRole as 'user' | 'assistant',
         createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
         citations: [],
         ragReference: undefined,
@@ -239,6 +251,23 @@ export const createProcessFlow = (contentArray: any[]): ProcessFlow => {
       };
 
       processNodes.push(webNode);
+    } else if (contentItem.messageType === 'excalidraw') {
+      const excalidrawData = contentItem.content || {};
+      const nodeName = excalidrawData.nodeName || `excalidraw-${index}`;
+      const displayTitle = excalidrawData.displayTitle || '绘图内容';
+      const nodeData = excalidrawData.data || {};
+
+      const excalidrawNode: ProcessNode = {
+        type: 'excalidraw',
+        id: nodeName,
+        name: nodeName,
+        displayTitle: displayTitle,
+        status: 'completed',
+        data: nodeData,
+        order: index
+      };
+
+      processNodes.push(excalidrawNode);
     }
   });
 
@@ -282,11 +311,36 @@ export const extractWebContent = (contentArray: any[]): WebContent | undefined =
 };
 
 /**
+ * 从content数组中提取Excalidraw内容
+ */
+export const extractExcalidrawContent = (contentArray: any[]): ExcalidrawContent | undefined => {
+  const excalidrawContentItem = contentArray.find((item: any) => item.messageType === 'excalidraw');
+
+  if (!excalidrawContentItem) return undefined;
+
+  if (typeof excalidrawContentItem.content === 'object' && excalidrawContentItem.content !== null) {
+    return {
+      messageType: 'excalidraw',
+      data: excalidrawContentItem.content.data || excalidrawContentItem.content,
+      nodeName: excalidrawContentItem.content.nodeName || excalidrawContentItem.nodeName || 'excalidraw-content'
+    };
+  } else if (typeof excalidrawContentItem.content === 'object') {
+    return {
+      messageType: 'excalidraw',
+      data: excalidrawContentItem.content,
+      nodeName: excalidrawContentItem.nodeName || 'excalidraw-content'
+    };
+  }
+
+  return undefined;
+};
+
+/**
  * 处理流式数据更新
  */
 export interface StreamDataProcessor {
   messageId: string;
-  messageType: 'text' | 'agent' | 'web';
+  messageType: 'text' | 'agent' | 'web' | 'excalidraw';
   content: any;
   threadId?: string;
 }
@@ -297,28 +351,36 @@ export const processStreamData = (
     textContentBuffer: string;
     processNodes: ProcessNode[];
     processEdges: Array<{ from: string; to: string }>;
-    lastMessageType: 'text' | 'agent' | 'web' | null;
+    lastMessageType: 'text' | 'agent' | 'web' | 'excalidraw' | null;
     lastNodeName: string | null;
-    webContentBuffer: string; // 新增：web内容缓冲区
+    webContentBuffer: string; // web内容缓冲区
+    excalidrawData: any; // Excalidraw数据缓冲区
   }
 ): {
   updatedTextContentBuffer: string;
   updatedProcessNodes: ProcessNode[];
   updatedProcessEdges: Array<{ from: string; to: string }>;
-  updatedLastMessageType: 'text' | 'agent' | 'web' | null;
+  updatedLastMessageType: 'text' | 'agent' | 'web' | 'excalidraw' | null;
   updatedLastNodeName: string | null;
   hasWebContent: boolean;
   webContent: string;
+  hasExcalidrawContent: boolean;
+  excalidrawContent: any;
+  updatedWebContentBuffer: string;
+  updatedExcalidrawData: any;
 } => {
-  const { textContentBuffer, processNodes, processEdges, lastMessageType, lastNodeName, webContentBuffer } = currentState;
+  const { textContentBuffer, processNodes, processEdges, lastMessageType, lastNodeName, webContentBuffer, excalidrawData } = currentState;
   let updatedTextContentBuffer = textContentBuffer;
   let updatedProcessNodes = [...processNodes];
   let updatedProcessEdges = [...processEdges];
   let updatedLastMessageType = lastMessageType;
   let updatedLastNodeName = lastNodeName;
   let updatedWebContentBuffer = webContentBuffer;
+  let updatedExcalidrawData = excalidrawData;
   let hasWebContent = false;
   let webContent = '';
+  let hasExcalidrawContent = false;
+  let excalidrawContent = {};
 
   switch (data.messageType) {
     case 'text':
@@ -427,6 +489,63 @@ export const processStreamData = (
       hasWebContent = true;
       webContent = updatedWebContentBuffer;
       break;
+      
+    case 'excalidraw':
+      updatedTextContentBuffer = '';
+      updatedWebContentBuffer = ''; // 切换到excalidraw模式时清空web缓冲区
+      const excalidrawContentData = data.content || {};
+      const excalidrawNodeName = excalidrawContentData.nodeName || 'excalidraw-output';
+      const nodeExcalidrawData = excalidrawContentData.data || excalidrawContentData;
+      
+      // 累积excalidraw数据
+      updatedExcalidrawData = nodeExcalidrawData;
+      
+      // 查找是否已存在相同ID的excalidraw节点
+      const existingExcalidrawNodeIndex = processNodes.findIndex(node =>
+        node.type === 'excalidraw' && node.id === excalidrawNodeName
+      );
+      
+      if (existingExcalidrawNodeIndex >= 0) {
+        // 更新现有excalidraw节点的内容
+        updatedProcessNodes = updatedProcessNodes.map((node, index) =>
+          index === existingExcalidrawNodeIndex
+            ? { ...node, data: updatedExcalidrawData }
+            : node
+        );
+      } else {
+        // 创建新的excalidraw节点（仅在第一次时）
+        if (updatedProcessNodes.length > 0) {
+          updatedProcessNodes = updatedProcessNodes.map(node => ({
+            ...node,
+            status: 'completed' as const
+          }));
+        }
+        
+        const excalidrawNode: ProcessNode = {
+          type: 'excalidraw',
+          id: excalidrawNodeName,
+          name: excalidrawNodeName,
+          displayTitle: '绘图内容',
+          status: 'active',
+          data: updatedExcalidrawData,
+          order: updatedProcessNodes.length
+        };
+        
+        updatedProcessNodes.push(excalidrawNode);
+        
+        if (updatedProcessNodes.length > 1) {
+          const lastNodeIndex = updatedProcessNodes.length - 1;
+          updatedProcessEdges.push({
+            from: updatedProcessNodes[lastNodeIndex - 1].id,
+            to: updatedProcessNodes[lastNodeIndex].id
+          });
+        }
+      }
+      
+      updatedLastMessageType = 'excalidraw';
+      hasExcalidrawContent = true;
+      excalidrawContent = updatedExcalidrawData;
+      break;
 
     case 'agent':
       updatedTextContentBuffer = '';
@@ -493,16 +612,12 @@ export const processStreamData = (
     updatedLastNodeName,
     hasWebContent,
     webContent,
-    updatedWebContentBuffer
+    hasExcalidrawContent,
+    excalidrawContent,
+    updatedWebContentBuffer,
+    updatedExcalidrawData
   };
-};
+  }
 
-// 导出类型供其他模块使用
-export type { ProcessNode, ProcessFlow, Message, WebContent, Citation };
-
-export interface StreamDataProcessor {
-  messageId: string;
-  messageType: 'text' | 'agent' | 'web';
-  content: any;
-  threadId?: string;
-}
+  // 导出类型供其他模块使用
+export type { ProcessNode, ProcessFlow, Message, WebContent, ExcalidrawContent, Citation };

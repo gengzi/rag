@@ -48,7 +48,7 @@ export const useKeyboardNavigation = (
 
     const elements = document.querySelectorAll(selector) as NodeListOf<HTMLElement>;
     focusableElementsRef.current = Array.from(elements).filter(
-      el => el.offsetParent !== null && !el.disabled
+      el => el.offsetParent !== null && !(el as HTMLInputElement).disabled
     );
 
     return focusableElementsRef.current;
@@ -182,7 +182,7 @@ export const useKeyboardNavigation = (
    */
   const focusElement = useCallback((selector: string) => {
     const element = document.querySelector(selector) as HTMLElement;
-    if (element && element.offsetParent !== null && !element.disabled) {
+    if (element && element.offsetParent !== null && !(element as HTMLInputElement).disabled) {
       const elements = getFocusableElements();
       const index = elements.indexOf(element);
       currentFocusIndexRef.current = index >= 0 ? index : -1;

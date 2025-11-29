@@ -61,8 +61,8 @@ export const useChatHistory = ({
       const formattedMessages = parseMessagesFromAPI(data);
       console.log('解析后的消息数量:', formattedMessages.length);
 
-      // 更新分页状态 - API返回的是nextCursor字段
-      const nextCursor = data.nextCursor || data.data?.nextCursor;
+      // 更新分页状态
+      const nextCursor = null; // 暂时设为null，因为API响应中不存在该字段
       console.log('加载更多更新分页状态:', {
         nextCursor,
         before: data.before,
@@ -192,8 +192,8 @@ export const useChatHistory = ({
         const formattedMessages = parseMessagesFromAPI(data);
         console.log('初始加载解析后的消息数量:', formattedMessages.length);
 
-        // 更新分页状态 - API返回的是nextCursor字段
-        const nextCursor = data.nextCursor || data.data?.nextCursor;
+        // 更新分页状态 - API响应中不存在nextCursor字段
+        const nextCursor = null;
         console.log('更新分页状态:', {
           hasData: !!data,
           nextCursor,

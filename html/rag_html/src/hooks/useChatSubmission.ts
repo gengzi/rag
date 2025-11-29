@@ -54,9 +54,10 @@ export const useChatSubmission = ({
       textContentBuffer: '',
       processNodes: [] as ProcessNode[],
       processEdges: [] as { from: string; to: string }[],
-      lastMessageType: null as 'text' | 'agent' | 'web' | null,
+      lastMessageType: null as 'text' | 'agent' | 'web' | 'excalidraw' | null,
       lastNodeName: null as string | null,
       webContentBuffer: '',
+      excalidrawData: null,
     };
 
     // 标记是否已创建助手消息
@@ -163,6 +164,7 @@ export const useChatSubmission = ({
               lastMessageType: result.updatedLastMessageType,
               lastNodeName: result.updatedLastNodeName,
               webContentBuffer: result.updatedWebContentBuffer,
+              excalidrawData: null,
             };
 
             if (result.hasWebContent) {
@@ -196,7 +198,7 @@ export const useChatSubmission = ({
             }
             updateTimeoutRef.current = setTimeout(() => {
               if (pendingUpdateRef.current) {
-                console.log('更新助手消息，ID:', assistantMessageId, '节点数:', assistantMessage.processFlow.nodes.length);
+                console.log('更新助手消息，ID:', assistantMessageId, '节点数:', assistantMessage.processFlow?.nodes?.length);
                 onMessageUpdate(pendingUpdateRef.current);
                 pendingUpdateRef.current = null;
               }

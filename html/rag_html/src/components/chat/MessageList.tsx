@@ -46,14 +46,12 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
       {/* 消息列表 */}
       {messages.map((message) => (
         <MessageItemFixed
-          key={message.id}
-          message={message}
-          data-message="true"
-          data-message-id={message.id}
-          tabIndex={0}
-          role="article"
-          aria-label={`${message.role === 'user' ? '用户' : 'AI助手'}消息`}
-        />
+              key={message.id}
+              message={message}
+              data-message="true"
+              data-message-id={message.id}
+              aria-label={`${message.role === 'user' ? '用户' : 'AI助手'}消息`}
+            />
       ))}
 
       {/* 正在输入指示器 */}

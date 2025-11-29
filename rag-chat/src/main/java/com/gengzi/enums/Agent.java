@@ -7,6 +7,7 @@ package com.gengzi.enums;
 public enum Agent {
     DEEPRESEARCH_AGENT("DeepResearch", "深度检索", ""),
     PPTGENERATE_AGENT("PPTGenerate", "PPT生成", ""),
+    EXCALIDRAW_AGENT("Excalidraw", "绘图助手", ""),
     ;
     private final String agentCode;
     private final String description;

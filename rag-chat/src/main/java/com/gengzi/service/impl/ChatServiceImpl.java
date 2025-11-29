@@ -19,6 +19,7 @@ import com.gengzi.request.MessageContext;
 import com.gengzi.response.*;
 import com.gengzi.service.ChatService;
 import com.gengzi.service.DeepResearchService;
+import com.gengzi.service.ExcalidrawService;
 import com.gengzi.service.PPTGenerateService;
 import org.redisson.api.*;
 import org.redisson.api.stream.StreamAddArgs;
@@ -69,6 +70,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     @Qualifier("jdbcChatMemory")
     private ChatMemory chatMemory;
+
+    @Autowired
+    private ExcalidrawService excalidrawService;
 
     private com.gengzi.dao.Message bulidMessage(String messageId, String messageRole, Conversation conversation, ChatMessage chatMessage) {
         com.gengzi.dao.Message messageRecord = new com.gengzi.dao.Message();
@@ -235,6 +239,10 @@ public class ChatServiceImpl implements ChatService {
             return Objects.equals(agentA.getNodeName(), agentB.getNodeName());
         }
 
+        if (contentA instanceof ExcaildrawWebViewRes agentA && contentB instanceof ExcaildrawWebViewRes agentB) {
+            return Objects.equals(agentA.getNodeName(), agentB.getNodeName());
+        }
+
         return false; // 类型不同或无法合并
     }
 
@@ -253,6 +261,8 @@ public class ChatServiceImpl implements ChatService {
             targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
             // 其他字段如 nodeName 应相同（由 canMerge 保证）
         } else if (targetContent instanceof WebViewRes targetAgent && sourceContent instanceof WebViewRes sourceAgent) {
+            targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
+        } else if (targetContent instanceof ExcaildrawWebViewRes targetAgent && sourceContent instanceof ExcaildrawWebViewRes sourceAgent) {
             targetAgent.setContent(targetAgent.getContent() + sourceAgent.getContent());
         }
     }
@@ -346,6 +356,16 @@ public class ChatServiceImpl implements ChatService {
             if (Agent.PPTGENERATE_AGENT.getCode().equals(req.getAgentId())) {
                 try {
                     serverSentEventFlux = pptGenerateService.pptGenerate(req);
+                } catch (GraphRunnerException e) {
+                    throw new RuntimeException(e);
+                }
+                sinksSend(req, sink, serverSentEventFlux);
+                return;
+            }
+
+            if (Agent.EXCALIDRAW_AGENT.getCode().equals(req.getAgentId())) {
+                try {
+                    serverSentEventFlux = excalidrawService.excalidrawGenerate(req);
                 } catch (GraphRunnerException e) {
                     throw new RuntimeException(e);
                 }

@@ -211,7 +211,7 @@ const ExcalidrawRenderer: React.FC<ExcalidrawRendererProps> = ({ data }) => {
       </div>
 
       <div 
-        className={`border rounded transition-all duration-300 overflow-hidden relative ${isLoading ? 'opacity-50' : 'opacity-100'} h-[500px] md:h-[400px]`}
+        className={`border rounded transition-all duration-300 overflow-hidden relative ${isLoading ? 'opacity-50' : 'opacity-100'} h-[900px] md:h-[800px]`}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">

@@ -42,7 +42,8 @@ export default function DashboardLayout({
     
     // 立即进行访问控制检查
     const restrictedPaths = ['/dashboard/knowledge', '/dashboard/rag-evaluation'];
-    const isRestrictedPath = restrictedPaths.some(path => pathname.startsWith(path));
+    // 添加空值检查
+    const isRestrictedPath = pathname && restrictedPaths.some(path => pathname.startsWith(path));
     
     // 只有非管理员尝试访问受限页面时才重定向
     if (isRestrictedPath && currentRole !== 'admin') {
@@ -116,7 +117,8 @@ export default function DashboardLayout({
           {/* Navigation */}
           <nav className="flex-1 space-y-2 px-4 py-6">
             {navigation.map((item, index) => {
-              const isActive = pathname.startsWith(item.href);
+              // 添加空值检查，默认为false
+              const isActive = pathname ? pathname.startsWith(item.href) : false;
               return (
                 <Link
                   key={item.href}

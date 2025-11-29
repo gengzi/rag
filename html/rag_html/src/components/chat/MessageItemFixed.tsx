@@ -109,48 +109,85 @@ const AssistantMessage = memo<{
   }, [timestamp]);
 
   const messageContent = useMemo(() => {
-    // 如果有processFlow（包含agent、text、web、excalidraw节点），优先使用AgentAnswer显示完整流程
-    // AgentAnswer现在已经支持直接渲染excalidraw节点
-    if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
-      return (
-        <AgentAnswer
-          processFlow={processFlow}
-          content={content}
-          citations={citations}
-          ragReference={ragReference}
-        />
-      );
-    }
-    // 如果有独立的excalidraw内容（没有processFlow），显示excalidraw内容
-    else if (excalidrawContent && excalidrawContent.messageType === 'excalidraw') {
-      return (
-        <>
-          {content && (
-            <div className="mb-4">
-              <Answer content={content} citations={citations} ragReference={ragReference} />
-            </div>
-          )}
-          <ExcalidrawRenderer data={excalidrawContent.data} />
-        </>
-      );
-    }
-    // 如果有独立的web内容（没有processFlow），显示web内容
-    else if (webContent && webContent.messageType === 'web') {
-      return (
-        <>
-          {content && (
-            <div className="mb-4">
-              <Answer content={content} citations={citations} ragReference={ragReference} />
-            </div>
-          )}
-          <WebContentRenderer content={webContent.content} />
-        </>
-      );
-    }
-    // 普通文本消息
-    else {
-      return <Answer content={content} citations={citations} ragReference={ragReference} />;
-    }
+    // 主要内容渲染
+    const renderMainContent = () => {
+      // 优先使用AgentAnswer渲染processFlow（保持原有功能）
+      if (processFlow && processFlow.nodes && processFlow.nodes.length > 0) {
+        // 检查processFlow中是否包含excalidraw节点
+        const hasExcalidrawNode = processFlow.nodes.some(
+          (node: any) => node.type === 'excalidraw' || node.messageType === 'excalidraw'
+        );
+        
+        // 检查是否有独立的excalidraw内容
+        const hasIndependentExcalidraw = excalidrawContent && excalidrawContent.messageType === 'excalidraw';
+        
+        // 检查是否有独立的web内容
+        const hasWebContent = webContent && webContent.messageType === 'web';
+        
+        // 如果同时有processFlow和独立的excalidraw或web内容，
+        // 先渲染processFlow，然后渲染独立的内容
+        if (hasExcalidrawNode || hasIndependentExcalidraw || hasWebContent) {
+          return (
+            <>
+              {/* 先渲染完整的processFlow，保持原有流示输出 */}
+              <AgentAnswer
+                processFlow={processFlow}
+                content={content}
+                citations={citations}
+                ragReference={ragReference}
+              />
+              
+              {/* 如果有独立的excalidraw内容且不在processFlow中，额外渲染 */}
+              {hasIndependentExcalidraw && !hasExcalidrawNode && (
+                <ExcalidrawRenderer data={excalidrawContent.data} />
+              )}
+            </>
+          );
+        } else {
+          // 正常渲染processFlow
+          return (
+            <AgentAnswer
+              processFlow={processFlow}
+              content={content}
+              citations={citations}
+              ragReference={ragReference}
+            />
+          );
+        }
+      }
+      // 如果没有processFlow，但有独立的excalidraw内容
+      else if (excalidrawContent && excalidrawContent.messageType === 'excalidraw') {
+        return (
+          <>
+            {content && (
+              <div className="mb-4">
+                <Answer content={content} citations={citations} ragReference={ragReference} />
+              </div>
+            )}
+            <ExcalidrawRenderer data={excalidrawContent.data} />
+          </>
+        );
+      }
+      // 如果有独立的web内容
+      else if (webContent && webContent.messageType === 'web') {
+        return (
+          <>
+            {content && (
+              <div className="mb-4">
+                <Answer content={content} citations={citations} ragReference={ragReference} />
+              </div>
+            )}
+            <WebContentRenderer content={webContent.content} />
+          </>
+        );
+      }
+      // 普通文本消息
+      else {
+        return <Answer content={content} citations={citations} ragReference={ragReference} />;
+      }
+    };
+    
+    return renderMainContent();
   }, [content, citations, ragReference, processFlow, webContent, excalidrawContent]);
 
   return (

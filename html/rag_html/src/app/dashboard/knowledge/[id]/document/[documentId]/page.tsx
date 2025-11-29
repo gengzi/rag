@@ -30,6 +30,25 @@ interface DocumentDetail {
 export default function DocumentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  // 添加空值检查
+  if (!params || !params.id || !params.documentId) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h2 className="text-xl font-bold">参数错误</h2>
+            <p className="text-muted-foreground mt-2">缺少必要的参数信息</p>
+            <Button variant="default" onClick={() => router.back()} className="mt-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              返回
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
   const knowledgeBaseId = params.id as string;
   const documentId = params.documentId as string;
   

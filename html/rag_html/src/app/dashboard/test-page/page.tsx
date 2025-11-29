@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Send, User, Bot, MessageSquare, Loader2, AlertCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { useToast } from "@/components/ui/use-toast";
-import Answer from "@/components/chat/answer";
-import AgentAnswer from "@/components/chat/agent-answer";
+// 使用动态导入避免SSR问题
+import dynamic from 'next/dynamic';
+const Answer = dynamic(() => import("@/components/chat/answer"), { ssr: false });
+const AgentAnswer = dynamic(() => import("@/components/chat/agent-answer"), { ssr: false });
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 

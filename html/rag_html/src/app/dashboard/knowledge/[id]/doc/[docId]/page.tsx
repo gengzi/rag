@@ -82,6 +82,25 @@ interface KnowledgeBaseInfo {
 
 export default function DocumentDetailPage() {
   const params = useParams();
+  // 添加空值检查
+  if (!params || !params.id || !params.docId) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h2 className="text-xl font-bold">参数错误</h2>
+            <p className="text-muted-foreground mt-2">缺少必要的参数信息</p>
+            <Link href="/dashboard/knowledge" className="mt-4 inline-flex items-center text-primary hover:underline">
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              返回知识库列表
+            </Link>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
   const knowledgeBaseId = params.id as string;
   const documentId = params.docId as string;
   const [document, setDocument] = useState<DocumentDetail | null>(null);

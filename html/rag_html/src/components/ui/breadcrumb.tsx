@@ -8,7 +8,8 @@ const Breadcrumb = () => {
   const pathname = usePathname();
 
   const generateBreadcrumbs = () => {
-    const paths = pathname.split("/").filter(Boolean);
+    // 添加空值检查，默认为空数组
+    const paths = pathname ? pathname.split("/").filter(Boolean) : [];
     const breadcrumbs = paths.map((path, index) => {
       const href = "/" + paths.slice(0, index + 1).join("/");
       const label =
@@ -30,7 +31,8 @@ const Breadcrumb = () => {
 
   const breadcrumbs = generateBreadcrumbs();
 
-  if (pathname === "/") return null;
+  // 添加空值检查
+  if (!pathname || pathname === "/") return null;
 
   return (
     <nav className="flex items-center space-x-2 text-base text-muted-foreground mb-6">

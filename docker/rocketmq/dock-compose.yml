@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  namesrv:
+    image: apache/rocketmq:5.3.2
+    container_name: rmqnamesrv
+    ports:
+      - 9876:9876
+    networks: [rocketmq]
+    command: sh mqnamesrv
+
+  broker:
+    image: apache/rocketmq:5.3.2
+    container_name: rmqbroker
+    ports:
+      - 10909:10909
+      - 10911:10911
+      - 10912:10912
+      - 8180:8080
+      - 8181:8081
+    environment:
+      - NAMESRV_ADDR=rmqnamesrv:9876
+    volumes:
+      - ./broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf
+    depends_on: [namesrv]
+    networks: [rocketmq]
+    command: sh mqbroker --enable-proxy -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
+
+  dashboard:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: rmqdashboard
+    ports:
+      - 8088:8082
+    environment:
+      - "JAVA_OPTS=-Drocketmq.namesrv.addr=rmqnamesrv:9876"
+    depends_on:
+      - namesrv
+    networks:
+      - rocketmq
+
+networks:
+  rocketmq:
+    driver: bridge

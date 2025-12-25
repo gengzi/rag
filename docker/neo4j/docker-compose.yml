@@ -1,0 +1,14 @@
+services:
+  neo4j:
+    image: neo4j:2025.05.0
+    volumes:
+      - F:\neo4j\logs:/logs
+      - F:\neo4j\config:/config
+      - F:\neo4j\data:/data
+      - F:\neo4j\plugins:/plugins
+    environment:
+      - NEO4J_AUTH=neo4j/neo4j111
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    restart: always

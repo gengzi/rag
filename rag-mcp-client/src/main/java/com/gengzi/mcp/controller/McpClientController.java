@@ -152,6 +152,10 @@ public class McpClientController {
 //            }
 //        }
 
+        ThreadLocal<String> stringThreadLocal = new ThreadLocal<>();
+        stringThreadLocal.set("张三");
+
+
         String content = deepseekChatClientNoRag.prompt()
                 .tools(new TestMcpTools())
                 .system(SYS_MEMORY_PROMPT_V2)

@@ -1,0 +1,56 @@
+plugins {
+    id 'java'
+}
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    // 优先使用国内仓库
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://maven.aliyun.com/repository/spring' }
+    maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    // 最后 fallback 到官方仓库
+//    mavenCentral()
+    gradlePluginPortal()
+}
+
+springBoot {
+    mainClass = 'com.gengzi.RagGraphApplication'
+}
+
+ext {
+    springAiVersion = '1.1.0-M4'
+    springAiAlibabaVersion = '1.1.0.0-M5'
+}
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "com.alibaba.cloud.ai:spring-ai-alibaba-bom:${springAiAlibabaVersion}"
+    }
+}
+
+dependencies {
+
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+    implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
+    implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-agent-framework'
+    implementation "org.springframework.ai:spring-ai-starter-model-openai"
+
+    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
+    implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

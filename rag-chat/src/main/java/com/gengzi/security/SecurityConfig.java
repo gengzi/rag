@@ -52,7 +52,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable()) // WebFlux 中 CSRF 可禁用（视场景而定）
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/login", "/v3/api-docs/**", "/api/order/**",
+                        .pathMatchers("/login", "/v3/api-docs/**", "/api/order/**","/api/graph/**",
                                 "/s3Management/**", "/swagger-ui/**", "/swagger-ui.html", "/user/login", "/webjars/**").permitAll() // 登录接口允许匿名访问
                         .pathMatchers("/admin/**").hasRole("ADMIN") // 管理员接口需 ADMIN 角色
                         .anyExchange().authenticated() // 其他接口需认证

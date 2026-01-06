@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -108,11 +109,24 @@ public class RagGraphBuildServiceImpl implements RagGraphBuildService {
                 chunks.add(chunk);
             }
         }
-        for (int i = 0; i + 1 < chunks.size(); i++) {
+        List<Chunk> sortedChunks = chunks.stream().sorted(
+                Comparator.comparingInt(this::extractChunkNumber)
+        ).toList();
+        for (int i = 0; i + 1 < sortedChunks.size(); i++) {
             chunks.get(i).setNextChunk(chunks.get(i + 1));
         }
 
         return document;
+    }
+
+    private int extractChunkNumber(Chunk chunk) {
+        String id = chunk.getChunkId();
+        // 加上 try-catch 防止 id 格式不对导致整个接口崩溃
+        try {
+            return Integer.parseInt(id.substring(id.lastIndexOf("_") + 1));
+        } catch (Exception e) {
+            return 0; // 或者抛出异常，视业务容错而定
+        }
     }
 
     private Chunk mapChunk(KnowledgeDocument knowledgeDocument, String docId, int index) {
@@ -120,10 +134,10 @@ public class RagGraphBuildServiceImpl implements RagGraphBuildService {
             return null;
         }
         Chunk chunk = new Chunk();
-        chunk.setChunkId(docId + ":" + index);
+        chunk.setChunkId(knowledgeDocument.getId());
         chunk.setContent(GraphBuildUtil.firstNonBlank(knowledgeDocument.getContent(),
-            knowledgeDocument.getContentLtks(),
-            knowledgeDocument.getContentSmLtks()));
+                knowledgeDocument.getContentLtks(),
+                knowledgeDocument.getContentSmLtks()));
         return chunk;
     }
 }

@@ -37,11 +37,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
     implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+    implementation 'cn.hutool:hutool-all:5.8.16'
     implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-agent-framework'
     implementation "org.springframework.ai:spring-ai-starter-model-openai"
 
-    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
-    implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
+//    implementation 'org.springframework.ai:spring-ai-elasticsearch-store'
+//    implementation 'org.elasticsearch.client:elasticsearch-rest-client:9.1.4'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

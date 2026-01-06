@@ -35,3 +35,4 @@ replay_pid*
 /models/markitdown-mcp/.idea/
 /models/markitdown-mcp/.venv/
 /models/tts/.idea/
+/rag-graph/build/

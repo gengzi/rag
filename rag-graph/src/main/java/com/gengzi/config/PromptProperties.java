@@ -18,15 +18,27 @@ import java.nio.charset.StandardCharsets;
 public class PromptProperties {
 
     /**
-     * 实体识别提示词文件路径（预留）
+     * 实体识别提示词文件路径
      */
     private String entityRecognition = "prompt/ENTITY_RECOGNITION_PROMPT.md";
+
+    /**
+     * 社区总结提示词文件路径
+     */
+    private String communityReport = "prompt/COMMUNITY_REPORT_PROMPT.md";
 
     /**
      * 加载实体识别提示词内容
      */
     public String loadEntityRecognitionPrompt() {
         return loadPromptFromFile(entityRecognition);
+    }
+
+    /**
+     * 加载社区总结提示词内容
+     */
+    public String loadCommunityReportPrompt() {
+        return loadPromptFromFile(communityReport);
     }
 
     /**

@@ -18,9 +18,11 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -31,6 +33,8 @@ import java.util.*;
 public class GraphExtractionServiceImpl implements GraphExtractionService {
 
     private static final Logger logger = LoggerFactory.getLogger(GraphExtractionServiceImpl.class);
+    private static final int COMMUNITY_REPORT_CHUNK_LIMIT = 30;
+    private static final int COMMUNITY_REPORT_MAX_CHARS = 8000;
 
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -38,19 +42,22 @@ public class GraphExtractionServiceImpl implements GraphExtractionService {
     private final KnowledgeEntityRepository knowledgeEntityRepository;
     private final ChunkRepository chunkRepository;
     private final CommunityGraphService communityGraphService;
+    private final Neo4jClient neo4jClient;
 
     public GraphExtractionServiceImpl(ChatModel chatModel,
                                        ObjectMapper objectMapper,
                                        PromptProperties promptProperties,
                                        KnowledgeEntityRepository knowledgeEntityRepository,
                                        ChunkRepository chunkRepository,
-                                       CommunityGraphService communityGraphService) {
+                                       CommunityGraphService communityGraphService,
+                                       Neo4jClient neo4jClient) {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper;
         this.promptProperties = promptProperties;
         this.knowledgeEntityRepository = knowledgeEntityRepository;
         this.chunkRepository = chunkRepository;
         this.communityGraphService = communityGraphService;
+        this.neo4jClient = neo4jClient;
     }
 
     @Override
@@ -190,6 +197,7 @@ public class GraphExtractionServiceImpl implements GraphExtractionService {
                 linkChunkToEntities(chunkId[0], entities);
             }
             communityGraphService.rebuildCommunities();
+            generateCommunityReports();
 
             logger.info("成功提取并保存 {} 个实体关系到 Neo4j", relations.size());
             return relations;
@@ -318,6 +326,137 @@ public class GraphExtractionServiceImpl implements GraphExtractionService {
         } catch (Exception e) {
             logger.error("建立 Chunk {} 与实体关系失败: {}", chunkId, e.getMessage(), e);
             // 不抛出异常，避免影响主流程
+        }
+    }
+    private void generateCommunityReports() {
+        String promptTemplate = promptProperties.loadCommunityReportPrompt();
+        Collection<Map<String, Object>> rows = neo4jClient.query(
+                "MATCH (c:Community) " +
+                        "CALL { " +
+                        "  WITH c " +
+                        "  MATCH (c)<-[:BELONGS_TO]-(e:Entity)<-[:MENTIONS]-(ch:Chunk) " +
+                        "  WHERE ch.content IS NOT NULL AND ch.content <> '' " +
+                        "  RETURN collect(DISTINCT ch.content)[0..$limit] AS contents " +
+                        "} " +
+                        "RETURN c.community_id AS communityId, c.level AS level, contents")
+            .bindAll(Map.of("limit", COMMUNITY_REPORT_CHUNK_LIMIT))
+            .fetch()
+            .all();
+
+        for (Map<String, Object> row : rows) {
+            String communityId = asString(row.get("communityId"));
+            Integer level = asInteger(row.get("level"));
+            List<String> contents = castStringList(row.get("contents"));
+            if (communityId == null || communityId.isBlank() || level == null || contents.isEmpty()) {
+                continue;
+            }
+
+            String inputText = String.join("\n\n---\n\n", contents);
+            if (inputText.length() > COMMUNITY_REPORT_MAX_CHARS) {
+                inputText = inputText.substring(0, COMMUNITY_REPORT_MAX_CHARS);
+            }
+
+            String fullPrompt = promptTemplate.replace("{input_text}", inputText);
+            try {
+                Message userMessage = new UserMessage(fullPrompt);
+                Prompt prompt = new Prompt(List.of(userMessage));
+                String response = chatModel.call(prompt).getResult().getOutput().getText();
+                String cleanedJson = validateJsonResponse(response);
+                CommunityReport report = parseCommunityReport(cleanedJson);
+                if (report == null) {
+                    continue;
+                }
+
+                neo4jClient.query(
+                        "MATCH (c:Community {community_id: $communityId, level: $level}) " +
+                                "SET c.title = $title, " +
+                                "    c.summary = $summary, " +
+                                "    c.rating = $rating, " +
+                                "    c.keywords = $keywords, " +
+                                "    c.report_updated_at = $updatedAt")
+                    .bindAll(Map.of(
+                        "communityId", communityId,
+                        "level", level,
+                        "title", report.title,
+                        "summary", report.summary,
+                        "rating", report.rating,
+                        "keywords", report.keywords,
+                        "updatedAt", LocalDateTime.now().toString()))
+                    .run();
+            } catch (Exception e) {
+                logger.warn("社区 {} 总结失败: {}", communityId, e.getMessage(), e);
+            }
+        }
+    }
+
+    private CommunityReport parseCommunityReport(String json) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(json);
+            String title = getText(node.get("title"));
+            String summary = getText(node.get("summary"));
+            Double rating = node.hasNonNull("rating") ? node.get("rating").asDouble() : null;
+            List<String> keywords = new ArrayList<>();
+            if (node.has("keywords") && node.get("keywords").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode item : node.get("keywords")) {
+                    String value = getText(item);
+                    if (value != null && !value.isBlank()) {
+                        keywords.add(value);
+                    }
+                }
+            }
+            return new CommunityReport(title, summary, rating, keywords);
+        } catch (Exception e) {
+            logger.warn("解析社区总结 JSON 失败: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private String getText(com.fasterxml.jackson.databind.JsonNode node) {
+        return node == null || node.isNull() ? null : node.asText();
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    private Integer asInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private List<String> castStringList(Object value) {
+        if (value instanceof List<?> list) {
+            List<String> results = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    results.add(item.toString());
+                }
+            }
+            return results;
+        }
+        return Collections.emptyList();
+    }
+
+    private static class CommunityReport {
+        private final String title;
+        private final String summary;
+        private final Double rating;
+        private final List<String> keywords;
+
+        private CommunityReport(String title, String summary, Double rating, List<String> keywords) {
+            this.title = title;
+            this.summary = summary;
+            this.rating = rating;
+            this.keywords = keywords == null ? Collections.emptyList() : keywords;
         }
     }
 }

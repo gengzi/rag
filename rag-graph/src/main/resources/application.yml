@@ -34,8 +34,10 @@ rag:
     batch-size: 200
     on-startup: false
   prompt:
-    # 实体识别提示词文件路径（预留）
+    # 实体识别提示词文件路径
     entity-recognition: prompt/ENTITY_RECOGNITION_PROMPT.md
+    # 社区总结提示词文件路径
+    community-report: prompt/COMMUNITY_REPORT_PROMPT.md
 server:
   port: 8199
 

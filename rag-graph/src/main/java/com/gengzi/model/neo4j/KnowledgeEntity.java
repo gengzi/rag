@@ -17,15 +17,10 @@ public class KnowledgeEntity {
     private String id; // 对应数据中的 ent:technology:neo4j
 
     private String name;
-    
-    @Property("canonical_name")
-    private String canonicalName;
-    
-    private String type; // Technology, Concept 等
-    
-    private String slug;
 
-    private List<String> aliases = new ArrayList<>();
+    private String type;
+    
+    private String description;
 
     // 关键点：使用上面定义的 EntityRelation 类来映射带属性的关系
     @Relationship(type = "RELATION_TYPE", direction = Relationship.Direction.OUTGOING)

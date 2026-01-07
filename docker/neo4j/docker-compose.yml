@@ -1,14 +1,33 @@
 services:
   neo4j:
-    image: neo4j:2025.05.0
+    image: neo4j:2025.05.0  # 注意：请确保这个镜像版本号是存在的，官方通常是 5.x.x
     volumes:
       - F:\neo4j\logs:/logs
       - F:\neo4j\config:/config
       - F:\neo4j\data:/data
       - F:\neo4j\plugins:/plugins
     environment:
+      # 1. 基础认证
       - NEO4J_AUTH=neo4j/neo4j111
+
+      # 2. 核心：自动下载并安装 GDS 和 APOC 插件
+      - NEO4J_PLUGINS=["graph-data-science", "apoc"]
+
+      # 3. 核心：赋予插件底层执行权限（否则调用算法会报 Security Error）
+      - NEO4J_dbms_security_procedures_unrestricted=gds.*,apoc.*
+
+      # 4. (可选但强烈建议) 内存配置
+      # GDS 是内存大户，如果不限制堆内存，可能会 OOM 或者跑得很慢
+      # 建议：Initial 设为物理内存的 1/4，Max 设为 1/2 (根据你机器配置调整，这里举例 2G/4G)
+      - NEO4J_server_memory_heap_initial__size=2G
+      - NEO4J_server_memory_heap_max__size=4G
+
+      # 5. 开启 APOC 的导入导出功能 (如果你需要导入 CSV/JSON)
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7474:7474" # HTTP 浏览器访问
+      - "7687:7687" # Bolt 协议 (Python/Java Driver 连接用)
     restart: always

@@ -52,7 +52,7 @@ public class RagGraphDocument {
         private String chunkId;
         private Integer index;
         private String content;
-        private final List<RagGraphMention> mentions = new ArrayList<>();
+        private final List<RagGraphEntity> entities = new ArrayList<>();
 
         public String getChunkId() {
             return chunkId;
@@ -78,56 +78,8 @@ public class RagGraphDocument {
             this.content = content;
         }
 
-        public List<RagGraphMention> getMentions() {
-            return mentions;
-        }
-    }
-
-    public static class RagGraphMention {
-        private String mentionId;
-        private String span;
-        private Double confidence;
-        private String chunkId;
-        private RagGraphEntity referredEntity;
-
-        public String getMentionId() {
-            return mentionId;
-        }
-
-        public void setMentionId(String mentionId) {
-            this.mentionId = mentionId;
-        }
-
-        public String getSpan() {
-            return span;
-        }
-
-        public void setSpan(String span) {
-            this.span = span;
-        }
-
-        public Double getConfidence() {
-            return confidence;
-        }
-
-        public void setConfidence(Double confidence) {
-            this.confidence = confidence;
-        }
-
-        public String getChunkId() {
-            return chunkId;
-        }
-
-        public void setChunkId(String chunkId) {
-            this.chunkId = chunkId;
-        }
-
-        public RagGraphEntity getReferredEntity() {
-            return referredEntity;
-        }
-
-        public void setReferredEntity(RagGraphEntity referredEntity) {
-            this.referredEntity = referredEntity;
+        public List<RagGraphEntity> getEntities() {
+            return entities;
         }
     }
 

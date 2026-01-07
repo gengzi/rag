@@ -11,6 +11,7 @@ import com.gengzi.model.neo4j.Document;
 import com.gengzi.repository.neo4j.Neo4jDocumentRepository;
 import com.gengzi.service.es.EsRagSourceService;
 import com.gengzi.service.es.KnowledgeDocumentService;
+import com.gengzi.service.graph.GraphExtractionService;
 import com.gengzi.service.graph.Neo4jGraphWriter;
 import com.gengzi.service.graph.RagGraphBuildService;
 import com.gengzi.util.GraphBuildUtil;
@@ -31,15 +32,18 @@ public class RagGraphBuildServiceImpl implements RagGraphBuildService {
     private final KnowledgeDocumentService knowledgeDocumentService;
     private final Neo4jDocumentRepository neo4jDocumentRepository;
     private final Neo4jGraphWriter neo4jGraphWriter;
+    private final GraphExtractionService graphExtractionService;
 
     public RagGraphBuildServiceImpl(EsRagSourceService esRagSourceService,
                                     KnowledgeDocumentService knowledgeDocumentService,
                                     Neo4jDocumentRepository neo4jDocumentRepository,
-                                    Neo4jGraphWriter neo4jGraphWriter) {
+                                    Neo4jGraphWriter neo4jGraphWriter,
+                                    GraphExtractionService graphExtractionService) {
         this.esRagSourceService = esRagSourceService;
         this.knowledgeDocumentService = knowledgeDocumentService;
         this.neo4jDocumentRepository = neo4jDocumentRepository;
         this.neo4jGraphWriter = neo4jGraphWriter;
+        this.graphExtractionService = graphExtractionService;
     }
 
     @Override
@@ -50,9 +54,15 @@ public class RagGraphBuildServiceImpl implements RagGraphBuildService {
                 logger.info("No documents found for docId {}", docId);
                 return;
             }
+
+            // 1. 构建 Document 和 Chunk 关系
             Document document = mapFromKnowledgeDocuments(documents, docId);
             if (document != null) {
-                neo4jDocumentRepository.save(document);
+                Document savedDocument = neo4jDocumentRepository.save(document);
+                logger.info("成功保存文档 {} 及其 {} 个分块到 Neo4j", docId, savedDocument.getChunks().size());
+
+                // 2. 对每个 Chunk 执行实体提取和关系构建
+                extractAndSaveEntitiesForChunks(savedDocument);
             }
             return;
         }
@@ -139,5 +149,46 @@ public class RagGraphBuildServiceImpl implements RagGraphBuildService {
                 knowledgeDocument.getContentLtks(),
                 knowledgeDocument.getContentSmLtks()));
         return chunk;
+    }
+
+    /**
+     * 对文档的所有分块执行实体提取和关系构建
+     * 将提取到的实体与分块建立关联关系
+     *
+     * @param document 已保存的文档对象（包含分块信息）
+     */
+    private void extractAndSaveEntitiesForChunks(Document document) {
+        if (document == null || document.getChunks().isEmpty()) {
+            logger.info("文档没有分块，跳过实体提取");
+            return;
+        }
+
+        logger.info("开始为文档 {} 的 {} 个分块提取实体关系", document.getDocId(), document.getChunks().size());
+
+        int successCount = 0;
+        int failCount = 0;
+
+        for (Chunk chunk : document.getChunks()) {
+            if (chunk.getContent() == null || chunk.getContent().isBlank()) {
+                logger.warn("分块 {} 内容为空，跳过实体提取", chunk.getChunkId());
+                continue;
+            }
+
+            try {
+                // 调用图提取服务提取实体和关系，并建立 Chunk-Entity 关系
+                // 传递 chunkId 参数用于建立 MENTIONS 关系
+                graphExtractionService.extractAndSaveEntities(chunk.getContent(), chunk.getChunkId());
+
+                successCount++;
+                logger.debug("成功为分块 {} 提取实体关系并建立关联", chunk.getChunkId());
+
+            } catch (Exception e) {
+                failCount++;
+                logger.error("为分块 {} 提取实体关系失败: {}", chunk.getChunkId(), e.getMessage(), e);
+            }
+        }
+
+        logger.info("文档 {} 实体提取完成，成功: {}，失败: {}",
+                document.getDocId(), successCount, failCount);
     }
 }

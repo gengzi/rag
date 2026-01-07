@@ -24,6 +24,6 @@ public class Chunk {
     private Chunk nextChunk;
 
     // 关系：切片包含多个提及
-    @Relationship(type = "HAS_MENTION", direction = Relationship.Direction.OUTGOING)
-    private List<Mention> mentions = new ArrayList<>();
+    @Relationship(type = "MENTIONS", direction = Relationship.Direction.OUTGOING)
+    private List<KnowledgeEntity> entities = new ArrayList<>();
 }

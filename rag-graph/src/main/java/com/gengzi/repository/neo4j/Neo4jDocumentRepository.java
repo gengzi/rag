@@ -23,7 +23,7 @@ public interface Neo4jDocumentRepository extends Neo4jRepository<Document, Strin
      * 场景：用户点击了知识图谱中的 "Neo4j" 节点，想看哪些文档提到了它。
      * 路径：Entity <- Mention <- Chunk <- Document
      */
-    @Query("MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:HAS_MENTION]->(m:Mention)-[:REFERS_TO]->(e:Entity) " +
+    @Query("MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:MENTIONS]->(e:Entity) " +
             "WHERE e.name = $entityName " +
             "RETURN DISTINCT d")
     List<Document> findDocumentsByEntityName(String entityName);
@@ -31,11 +31,4 @@ public interface Neo4jDocumentRepository extends Neo4jRepository<Document, Strin
     /**
      * 3. 复杂条件：查找包含高置信度提及的文档
      */
-    @Query("MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:HAS_MENTION]->(m:Mention) " +
-            "WHERE m.confidence > $minConfidence " +
-            "RETURN DISTINCT d")
-    List<Document> findDocumentsWithHighConfidenceMentions(Double minConfidence);
-
-
-
 }

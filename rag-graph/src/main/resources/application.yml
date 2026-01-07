@@ -33,6 +33,9 @@ rag:
     index-name: rag_store_new
     batch-size: 200
     on-startup: false
+  prompt:
+    # 实体识别提示词文件路径（预留）
+    entity-recognition: prompt/ENTITY_RECOGNITION_PROMPT.md
 server:
   port: 8199
 

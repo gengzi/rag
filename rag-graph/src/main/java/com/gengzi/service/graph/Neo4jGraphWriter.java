@@ -4,7 +4,7 @@ import com.gengzi.model.graph.RagGraphDocument;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphChunk;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphEntity;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphEntityRelation;
-import com.gengzi.model.graph.RagGraphDocument.RagGraphMention;
+import com.gengzi.service.graph.CommunityGraphService;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 
@@ -19,9 +19,11 @@ import java.util.Map;
 public class Neo4jGraphWriter {
 
     private final Neo4jClient neo4jClient;
+    private final CommunityGraphService communityGraphService;
 
-    public Neo4jGraphWriter(Neo4jClient neo4jClient) {
+    public Neo4jGraphWriter(Neo4jClient neo4jClient, CommunityGraphService communityGraphService) {
         this.neo4jClient = neo4jClient;
+        this.communityGraphService = communityGraphService;
     }
 
     public void upsertDocumentGraph(RagGraphDocument document) {
@@ -48,18 +50,20 @@ public class Neo4jGraphWriter {
                 }
             }
 
-            for (RagGraphMention mention : chunk.getMentions()) {
-                mergeMention(chunk.getChunkId(), mention);
-                if (mention.getReferredEntity() != null) {
-                    mergeEntity(mention.getReferredEntity());
-                    mergeMentionEntityRelation(mention.getMentionId(), mention.getReferredEntity().getId());
+            for (RagGraphEntity entity : chunk.getEntities()) {
+                if (entity == null) {
+                    continue;
+                }
+                mergeEntity(entity);
+                mergeChunkEntityRelation(chunk.getChunkId(), entity.getId());
 
-                    for (RagGraphEntityRelation relation : mention.getReferredEntity().getRelations()) {
-                        mergeEntityRelation(mention.getReferredEntity().getId(), relation);
-                    }
+                for (RagGraphEntityRelation relation : entity.getRelations()) {
+                    mergeEntityRelation(entity.getId(), relation);
                 }
             }
         }
+
+        communityGraphService.rebuildCommunities();
     }
 
     private void mergeDocument(RagGraphDocument document) {
@@ -103,25 +107,6 @@ public class Neo4jGraphWriter {
                 .run();
     }
 
-    private void mergeMention(String chunkId, RagGraphMention mention) {
-        if (mention == null || mention.getMentionId() == null || mention.getMentionId().isBlank()) {
-            return;
-        }
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("chunkId", chunkId);
-        params.put("mentionId", mention.getMentionId());
-        params.put("span", mention.getSpan());
-        params.put("confidence", mention.getConfidence());
-
-        neo4jClient.query("MERGE (c:Chunk {chunk_id: $chunkId}) " +
-                "MERGE (m:Mention {mention_id: $mentionId}) " +
-                "SET m.span = $span, m.confidence = $confidence, m.chunk_id = $chunkId " +
-                "MERGE (c)-[:HAS_MENTION]->(m)")
-                .bindAll(params)
-                .run();
-    }
-
     private void mergeEntity(RagGraphEntity entity) {
         if (entity == null || entity.getId() == null || entity.getId().isBlank()) {
             return;
@@ -141,18 +126,18 @@ public class Neo4jGraphWriter {
                 .run();
     }
 
-    private void mergeMentionEntityRelation(String mentionId, String entityId) {
-        if (mentionId == null || mentionId.isBlank() || entityId == null || entityId.isBlank()) {
+    private void mergeChunkEntityRelation(String chunkId, String entityId) {
+        if (chunkId == null || chunkId.isBlank() || entityId == null || entityId.isBlank()) {
             return;
         }
 
         Map<String, Object> params = new HashMap<>();
-        params.put("mentionId", mentionId);
+        params.put("chunkId", chunkId);
         params.put("entityId", entityId);
 
-        neo4jClient.query("MERGE (m:Mention {mention_id: $mentionId}) " +
+        neo4jClient.query("MERGE (c:Chunk {chunk_id: $chunkId}) " +
                 "MERGE (e:Entity {id: $entityId}) " +
-                "MERGE (m)-[:REFERS_TO]->(e)")
+                "MERGE (c)-[:MENTIONS]->(e)")
                 .bindAll(params)
                 .run();
     }

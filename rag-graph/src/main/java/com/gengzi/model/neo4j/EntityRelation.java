@@ -9,13 +9,14 @@ import org.springframework.data.neo4j.core.schema.TargetNode;
 @Data
 public class EntityRelation {
 
+    // 关系本身的内部 ID，必须要有
     @RelationshipId
-    private Long id; // 关系本身的内部 ID，必须要有
+    private Long id;
 
     // 关系上的属性
     private String description;
-    private String key;     // 例如 IS_A, CATEGORY
-    private Boolean uncertain;
+    // 例如 IS_A, CATEGORY
+    private String key;
 
     // 指向的目标节点
     @TargetNode

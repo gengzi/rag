@@ -4,7 +4,6 @@ import com.gengzi.model.graph.RagGraphDocument;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphChunk;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphEntity;
 import com.gengzi.model.graph.RagGraphDocument.RagGraphEntityRelation;
-import com.gengzi.model.graph.RagGraphDocument.RagGraphMention;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -93,34 +92,13 @@ public class EsRagDocumentMapper {
 
         List<Map<String, Object>> mentionMaps = getListOfMaps(source, "mentions", "mention_list", "entity_mentions");
         for (Map<String, Object> mentionMap : mentionMaps) {
-            RagGraphMention mention = mapMention(mentionMap, chunkId);
-            if (mention != null) {
-                chunk.getMentions().add(mention);
+            RagGraphEntity entity = mapEntity(mentionMap);
+            if (entity != null) {
+                chunk.getEntities().add(entity);
             }
         }
 
         return chunk;
-    }
-
-    private RagGraphMention mapMention(Map<String, Object> source, String chunkId) {
-        if (source == null || source.isEmpty()) {
-            return null;
-        }
-
-        RagGraphMention mention = new RagGraphMention();
-        String mentionId = getString(source, "mention_id", "mentionId", "id");
-        if (mentionId == null || mentionId.isBlank()) {
-            mentionId = UUID.randomUUID().toString();
-        }
-        mention.setMentionId(mentionId);
-        mention.setSpan(getString(source, "span", "text", "mention"));
-        mention.setConfidence(getDouble(source, "confidence", "score"));
-        mention.setChunkId(chunkId);
-
-        RagGraphEntity entity = mapEntity(source);
-        mention.setReferredEntity(entity);
-
-        return mention;
     }
 
     private RagGraphEntity mapEntity(Map<String, Object> source) {

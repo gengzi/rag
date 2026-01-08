@@ -38,6 +38,8 @@ rag:
     entity-recognition: prompt/ENTITY_RECOGNITION_PROMPT.md
     # 社区总结提示词文件路径
     community-report: prompt/COMMUNITY_REPORT_PROMPT.md
+    # 查询分析提示词文件路径
+    query-analysis: prompt/QUERY_ANALYSIS_PROMPT.md
 server:
   port: 8199
 

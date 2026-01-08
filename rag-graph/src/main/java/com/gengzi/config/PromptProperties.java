@@ -27,13 +27,15 @@ import java.nio.charset.StandardCharsets;
  *   prompt:
  *     entity-recognition: prompt/ENTITY_RECOGNITION_PROMPT.md
  *     community-report: prompt/COMMUNITY_REPORT_PROMPT.md
+ *     query-analysis: prompt/QUERY_ANALYSIS_PROMPT.md
  * </pre>
  *
  * <p>提示词文件位置：</p>
  * <pre>
  * src/main/resources/prompt/
  * ├── ENTITY_RECOGNITION_PROMPT.md    # 实体识别提示词
- * └── COMMUNITY_REPORT_PROMPT.md       # 社区总结提示词
+ * ├── COMMUNITY_REPORT_PROMPT.md       # 社区总结提示词
+ * └── QUERY_ANALYSIS_PROMPT.md         # 查询分析提示词
  * </pre>
  *
  * @author RAG Graph Development Team
@@ -78,6 +80,22 @@ public class PromptProperties {
     private String communityReport = "prompt/COMMUNITY_REPORT_PROMPT.md";
 
     /**
+     * 查询分析提示词文件路径
+     *
+     * <p>此提示词用于分析用户查询，包括：</p>
+     * <ul>
+     *   <li>查询意图识别</li>
+     *   <li>关键实体提取</li>
+     *   <li>查询类型判断</li>
+     *   <li>相关概念推荐</li>
+     * </ul>
+     *
+     * <p>默认值：`prompt/QUERY_ANALYSIS_PROMPT.md`</p>
+     * <p>可在配置文件中通过 `rag.prompt.query-analysis` 覆盖</p>
+     */
+    private String queryAnalysis = "prompt/QUERY_ANALYSIS_PROMPT.md";
+
+    /**
      * 加载实体识别提示词内容
      *
      * <p>从 classpath 中读取实体识别提示词文件内容，
@@ -115,6 +133,27 @@ public class PromptProperties {
      */
     public String loadCommunityReportPrompt() {
         return loadPromptFromFile(communityReport);
+    }
+
+    /**
+     * 加载查询分析提示词内容
+     *
+     * <p>从 classpath 中读取查询分析提示词文件内容，
+     * 用于 LLM 分析用户查询。</p>
+     *
+     * <p>使用场景：</p>
+     * <ul>
+     *   <li>用户查询意图分析</li>
+     *   <li>关键实体提取</li>
+     *   <li>查询扩展和优化</li>
+     *   <li>相关概念推荐</li>
+     * </ul>
+     *
+     * @return 提示词内容字符串
+     * @throws IllegalStateException 如果文件不存在或读取失败
+     */
+    public String loadQueryAnalysisPrompt() {
+        return loadPromptFromFile(queryAnalysis);
     }
 
     /**

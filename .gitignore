@@ -36,3 +36,9 @@ replay_pid*
 /models/markitdown-mcp/.venv/
 /models/tts/.idea/
 /rag-graph/build/
+/rag-dao/build/
+/rag-core/build/
+/*/build/
+/rag-agent/build/
+/rag-chat/build/
+/rag-serach/build/

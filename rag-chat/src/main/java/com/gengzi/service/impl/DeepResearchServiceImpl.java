@@ -4,7 +4,7 @@ package com.gengzi.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.graph.*;
 import com.alibaba.cloud.ai.graph.checkpoint.config.SaverConfig;
-import com.alibaba.cloud.ai.graph.checkpoint.savers.RedisSaver;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
 import com.gengzi.config.CustomThreadPool;
 import com.gengzi.rag.agent.deepresearch.process.DeepResearchGraphProcess;
@@ -15,6 +15,7 @@ import com.gengzi.service.DeepResearchService;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.codec.ServerSentEvent;
@@ -37,12 +38,17 @@ public class DeepResearchServiceImpl implements DeepResearchService {
     @Autowired
     private DeepResearchGraphProcess deepResearchGraphProcess;
 
+
+    @Autowired
+    @Qualifier("jdbcChatMemory")
+    private ChatMemory chatMemory;
+
 //    @Autowired
 //    private RedissonClient redissonClient;
 
     public DeepResearchServiceImpl(@Qualifier("deepResearch") StateGraph deepResearch, RedissonClient redissonClient) throws GraphStateException {
         // 记忆缓存类
-        memorySaver = new RedisSaver(redissonClient);
+        memorySaver = RedisSaver.builder().redisson(redissonClient).build();
         SaverConfig saverConfig = SaverConfig.builder().register(memorySaver).build();
         this.compiledGraph = deepResearch.compile(CompileConfig.builder().saverConfig(saverConfig).build());
     }
@@ -56,6 +62,10 @@ public class DeepResearchServiceImpl implements DeepResearchService {
         Map<String, Object> objectMap = new HashMap<>();
         objectMap.put("query", req.getQuery());
         objectMap.put("conversationId", req.getConversationId());
+        // TODO 将聊天记忆添加
+        objectMap.put("memory", chatMemory.get(req.getConversationId()));
+
+
         if (req instanceof AgentChatReq agentChatReq) {
             objectMap.put("userId", agentChatReq.getUserId());
         }

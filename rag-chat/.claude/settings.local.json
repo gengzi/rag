@@ -5,7 +5,11 @@
       "mcp__web-search-prime__webSearchPrime",
       "mcp__web-reader__webReader",
       "Bash(./gradlew test:*)",
-      "Bash(gradle test:*)"
+      "Bash(gradle test:*)",
+      "Bash(./gradlew:*)",
+      "Bash(dir:*)",
+      "Bash(javac:*)",
+      "Bash(test:*)"
     ]
   }
 }

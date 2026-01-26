@@ -211,6 +211,9 @@ public class ChatServiceImpl implements ChatService {
                 String agentContent = agentGraphRes.getContent();
                 stringBuilder.append("\n节点" + displayTitle + "执行结果:" + agentContent + "\n");
             }
+            // TODO 针对各个类型的都需要写入到 chatMemory
+
+            // TODO 判断生成的文本大于2000，快速进行摘要，异步进行llm的摘要
 
         });
         UserMessage userMessage = new UserMessage(req.getQuery());

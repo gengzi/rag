@@ -11,7 +11,7 @@ repositories {
 }
 
 ext {
-    set('springAiAlibabaVersion', "1.1.0.0-M5")
+    set('springAiAlibabaVersion', "1.1.0.0-RC2")
 }
 
 dependencyManagement {

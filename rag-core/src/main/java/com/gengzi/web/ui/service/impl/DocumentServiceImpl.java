@@ -15,6 +15,7 @@ import com.gengzi.dao.Document;
 import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.enums.FileProcessStatusEnum;
 import com.gengzi.enums.S3FileType;
+import com.gengzi.rag.embedding.load.csv.CsvS3Loader;
 import com.gengzi.rag.embedding.load.pdf.OcrPdfReader;
 import com.gengzi.rag.embedding.load.word.WordConvertByMarkItDownReader;
 import com.gengzi.request.DocumentSearchReq;
@@ -50,6 +51,9 @@ public class DocumentServiceImpl implements DocumentService {
     @Autowired
     private WordConvertByMarkItDownReader wordConvertByMarkItDownReader;
 
+    @Autowired
+    private CsvS3Loader csvS3Loader;
+
     @Value("${esVectorstore.index-name}")
     private String indexName;
 
@@ -82,6 +86,15 @@ public class DocumentServiceImpl implements DocumentService {
             case DOC, DOCX:
                 // 处理word的解析流程
                 wordConvertByMarkItDownReader.wordParse(file, document);
+                break;
+            case JSON:
+
+                break;
+            case CSV:
+                csvS3Loader.csvParse(file, document);
+                break;
+            case XLS, XLSX:
+
                 break;
             case UNKNOWN:
                 break;

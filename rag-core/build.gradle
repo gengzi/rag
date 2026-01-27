@@ -98,6 +98,10 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // Parquet & Hadoop
+    // Parquet (DuckDB)
+    implementation 'org.duckdb:duckdb_jdbc:1.1.3'
 }
 
 test {

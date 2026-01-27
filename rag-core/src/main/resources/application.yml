@@ -8,10 +8,16 @@ spring:
       max-file-size: 100MB
       max-request-size: 1000MB
   datasource:
-    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: 111
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    primary:
+      url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      username: root
+      password: 111
+      driver-class-name: com.mysql.cj.jdbc.Driver
+  duckdb:
+    datasource:
+      # DuckDB 不需要用户名密码，内存模式用 jdbc:duckdb:，文件模式指定路径
+      jdbc-url: 'jdbc:duckdb:'
+      driver-class-name: org.duckdb.DuckDBDriver
   jpa:
     show-sql: true # 打印SQL语句（开发环境用）
     properties:
@@ -32,7 +38,7 @@ spring:
       memory:
         repository:
           jdbc:
-            initialize-schema: always
+            initialize-schema: NEVER
     model:
       embedding: ollama
     ollama:
@@ -69,7 +75,7 @@ model:
 
 ## 对象存储相关配置
 s3:
-  endpoint: http://192.168.31.131:8886
+  endpoint: http://192.168.31.46:8886
   access-key: minioadmin
   secret-key: minioadmin
   default-bucket-name: rag

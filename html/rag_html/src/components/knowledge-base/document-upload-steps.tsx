@@ -126,6 +126,12 @@ export function DocumentUploadSteps({
         [".docx"],
       "text/plain": [".txt"],
       "text/markdown": [".md"],
+      // 新增支持的文件类型
+      "text/csv": [".csv"],
+      "application/json": [".json"],
+      "application/jsonlines": [".jsonl"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.ms-excel": [".xls"],
     },
   });
 
@@ -395,7 +401,7 @@ export function DocumentUploadSteps({
                   将文件拖放到此处或点击浏览
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  支持PDF、DOCX、TXT和MD文件
+                  支持PDF、DOCX、TXT、MD、CSV、JSON、JSONL和Excel文件
                 </p>
               </div>
               {files.length > 0 && (

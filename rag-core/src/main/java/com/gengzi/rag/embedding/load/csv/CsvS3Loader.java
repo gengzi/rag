@@ -67,6 +67,9 @@ public class CsvS3Loader {
     @Qualifier("duckdbDataSource")
     private DataSource duckdbDataSource;
 
+    @Autowired
+    private CsvHeaderExtractor csvHeaderExtractor;
+
     public void csvParse(String filePath, Document document) {
         String documentId = document.getId();
         String kbId = document.getKbId();
@@ -93,22 +96,77 @@ public class CsvS3Loader {
                     return;
                 }
 
-                // 读取 CSV 数据
-                CsvData analysisData = readCsvData(csvBytes);
-                if (analysisData == null)
-                    return;
+                // 2. 使用LLM智能提取表头
+                List<String> originalHeaders;
+                List<CsvRow> rows;
 
-                List<CsvRow> rows = analysisData.getRows();
-                List<String> originalHeaders = analysisData.getHeader();
+                try {
+                    // 读取所有CSV行（不假设表头位置）
+                    List<List<String>> allRawRows = readAllCsvRows(csvBytes);
 
-                if (CollUtil.isEmpty(originalHeaders)) {
-                    // 尝试假设第一行是 Header
-                    if (CollUtil.isNotEmpty(rows)) {
-                        originalHeaders = rows.get(0).getRawList();
-                        rows.remove(0);
-                    } else {
-                        logger.error("CSV为空或格式错误");
+                    if (CollUtil.isEmpty(allRawRows)) {
+                        logger.error("CSV为空");
                         return;
+                    }
+
+                    // 使用LLM分析前10行
+                    int rowsToAnalyze = Math.min(10, allRawRows.size());
+                    List<List<String>> firstNRows = allRawRows.subList(0, rowsToAnalyze);
+
+                    CsvHeaderExtractor.HeaderInfo headerInfo = csvHeaderExtractor.extractHeaderInfo(firstNRows);
+
+                    if (headerInfo.isSuccess()) {
+                        logger.info("LLM成功提取表头，位于第{}行", headerInfo.getHeaderRowIndex());
+
+                        // 使用LLM提取的列名和数据行
+                        originalHeaders = headerInfo.getColumnNames();
+
+                        // 提取数据行（跳过表头及之前的行）
+                        List<List<String>> dataRows = new ArrayList<>();
+                        for (int i = headerInfo.getHeaderRowIndex() + 1; i < allRawRows.size(); i++) {
+                            dataRows.add(allRawRows.get(i));
+                        }
+
+                        // 转换为CsvRow格式用于后续处理
+                        rows = convertRawRowsToCsvRows(dataRows);
+                    } else {
+                        logger.warn("LLM表头提取失败: {}, 使用传统方法", headerInfo.getErrorMessage());
+                        // 回退到原有逻辑
+                        CsvData analysisData = readCsvData(csvBytes);
+                        if (analysisData == null)
+                            return;
+
+                        rows = analysisData.getRows();
+                        originalHeaders = analysisData.getHeader();
+
+                        if (CollUtil.isEmpty(originalHeaders)) {
+                            if (CollUtil.isNotEmpty(rows)) {
+                                originalHeaders = rows.get(0).getRawList();
+                                rows.remove(0);
+                            } else {
+                                logger.error("CSV为空或格式错误");
+                                return;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("LLM处理失败，使用传统方法", e);
+                    // 完全回退到原有逻辑
+                    CsvData analysisData = readCsvData(csvBytes);
+                    if (analysisData == null)
+                        return;
+
+                    rows = analysisData.getRows();
+                    originalHeaders = analysisData.getHeader();
+
+                    if (CollUtil.isEmpty(originalHeaders)) {
+                        if (CollUtil.isNotEmpty(rows)) {
+                            originalHeaders = rows.get(0).getRawList();
+                            rows.remove(0);
+                        } else {
+                            logger.error("CSV为空或格式错误");
+                            return;
+                        }
                     }
                 }
 
@@ -427,6 +485,66 @@ public class CsvS3Loader {
             } catch (Exception e) {
                 logger.warn("删除临时文件失败: {}", path, e);
             }
+        }
+    }
+
+    /**
+     * 读取所有CSV行（不假设表头）
+     */
+    private List<List<String>> readAllCsvRows(byte[] csvBytes) {
+        try {
+            Charset charset = detectCharset(csvBytes);
+            CsvReader reader = CsvUtil.getReader();
+            CsvData csvData = reader.read(new InputStreamReader(new ByteArrayInputStream(csvBytes), charset));
+
+            List<List<String>> allRows = new ArrayList<>();
+
+            // 如果有header，也当作第一行数据
+            if (CollUtil.isNotEmpty(csvData.getHeader())) {
+                allRows.add(csvData.getHeader());
+            }
+
+            // 添加所有数据行
+            for (CsvRow row : csvData.getRows()) {
+                allRows.add(row.getRawList());
+            }
+
+            return allRows;
+        } catch (Exception e) {
+            logger.error("读取CSV行失败", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 将List<List<String>>转换为List<CsvRow>
+     * 使用CsvUtil重新解析CSV字符串来创建正确的CsvRow对象
+     */
+    private List<CsvRow> convertRawRowsToCsvRows(List<List<String>> rawRows) {
+        if (CollUtil.isEmpty(rawRows)) {
+            return new ArrayList<>();
+        }
+
+        try {
+            // 将List<List<String>>转换回CSV字符串
+            StringBuilder csvBuilder = new StringBuilder();
+            for (List<String> row : rawRows) {
+                // 使用引号包裹字段，避免包含逗号的字段被错误分割
+                String rowStr = row.stream()
+                        .map(cell -> "\"" + (cell == null ? "" : cell.replace("\"", "\"\"")) + "\"")
+                        .collect(Collectors.joining(","));
+                csvBuilder.append(rowStr).append("\n");
+            }
+
+            // 使用CsvReader重新解析
+            String csvContent = csvBuilder.toString();
+            CsvReader reader = CsvUtil.getReader();
+            CsvData csvData = reader.readFromStr(csvContent);
+
+            return csvData.getRows();
+        } catch (Exception e) {
+            logger.error("转换原始行到CsvRow失败", e);
+            return new ArrayList<>();
         }
     }
 }

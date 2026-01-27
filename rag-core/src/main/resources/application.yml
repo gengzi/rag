@@ -102,14 +102,14 @@ user:
 
 ## 自定义对话模型参数配置
 chatmodel:
-  apiKey: sk-wkekvkigaytxuokxdcbrcimuugyawdnxevihgwvxwerdmzqa
+  apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
   baseUrl: https://api.siliconflow.cn
   model: deepseek-ai/DeepSeek-V3
   ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
   temperature: 0.3
 
 rerankermodel:
-  apiKey: sk-wkekvkigaytxuokxdcbrcimuugyawdnxevihgwvxwerdmzqa
+  apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
   baseUrl: https://api.siliconflow.cn
   model: BAAI/bge-reranker-v2-m3
   instruction: "Please rerank the documents based on the query."
@@ -127,7 +127,7 @@ rerankermodel:
 #"
 
 multimodel:
-  apiKey: sk-wkekvkigaytxuokxdcbrcimuugyawdnxevihgwvxwerdmzqa
+  apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
   baseUrl: https://api.siliconflow.cn
   model: zai-org/GLM-4.5V
 

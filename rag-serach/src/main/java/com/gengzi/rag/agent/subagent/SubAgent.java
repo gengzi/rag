@@ -31,9 +31,9 @@ public class SubAgent {
                         "            4. 严禁对同一个文件进行重复读取，除非用户明确要求重试。\n" +
                         "            5. 如果工具报错，请直接告知用户错误原因，不要无休止重试。")
                 .interceptors(new ModelPerformanceInterceptor())
+                .hooks(new com.gengzi.rag.agent.reactagent.hooks.ModelPerformanceHook())
                 .build();
         return build;
     }
-
 
 }

@@ -13,32 +13,41 @@ import java.util.List;
 // 模型调用性能监控
 public class ModelPerformanceInterceptor extends ModelInterceptor {
     private static final Logger logger = LoggerFactory.getLogger(ModelPerformanceInterceptor.class);
-  @Override
-  public ModelResponse interceptModel(ModelRequest request, ModelCallHandler handler) {
-      // 请求前记录
-      System.out.println("发送请求到模型: " + request.getMessages().size() + " 条消息");
-      logger.info("发送请求到模型: " + request.getMessages().size() + " 条消息");
 
-      List<Message> messages = request.getMessages();
-      if (messages.size() > 0) {
-          Message message = messages.get(0);
-          logger.info("请求消息: " + message.getText());
-      }
+    @Override
+    public ModelResponse interceptModel(ModelRequest request, ModelCallHandler handler) {
+        // 请求前记录
+        int messageCount = request.getMessages().size();
+        logger.info("发送请求到模型: {} 条消息", messageCount);
 
-      long startTime = System.currentTimeMillis();
+        List<Message> messages = request.getMessages();
+        if (messages.size() > 0) {
+            Message message = messages.get(0);
+            logger.debug("请求消息: {}", message.getText());
+        }
 
-      // 执行实际调用
-      ModelResponse response = handler.call(request);
+        long startTime = System.currentTimeMillis();
 
-      // 响应后记录
-      long duration = System.currentTimeMillis() - startTime;
-      System.out.println("模型响应耗时: " + duration + "ms");
+        // 执行实际调用
+        ModelResponse response = handler.call(request);
 
-      return response;
-  }
+        // 响应后记录
+        long completionTime = System.currentTimeMillis() - startTime;
 
-  @Override
-  public String getName() {
-      return "ModelPerformanceInterceptor";
-  }
+        // 提取 token 使用信息 (需要根据实际的 ModelResponse API 调整)
+        // 注意: Spring AI Alibaba 的 ModelResponse 可能有不同的 API
+        // 这里我们先记录基本的性能指标
+
+        logger.info("模型调用完成 | 耗时: {}ms", completionTime);
+
+        // TODO: 根据 com.alibaba.cloud.ai.graph.agent.interceptor.ModelResponse 的实际 API
+        // 添加 token 统计功能。可能需要检查 response 对象的实际方法和字段。
+
+        return response;
+    }
+
+    @Override
+    public String getName() {
+        return "ModelPerformanceInterceptor";
+    }
 }

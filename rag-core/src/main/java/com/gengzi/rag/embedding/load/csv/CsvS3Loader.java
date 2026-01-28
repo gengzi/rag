@@ -14,6 +14,7 @@ import com.gengzi.context.FileContext;
 import com.gengzi.dao.Document;
 import com.gengzi.dao.repository.DocumentRepository;
 import com.gengzi.enums.FileProcessStatusEnum;
+import com.gengzi.enums.S3FileType;
 import com.gengzi.rag.vector.es.EsVectorDocumentConverter;
 import com.gengzi.s3.S3ClientUtils;
 import com.gengzi.utils.FileIdGenerator;
@@ -176,7 +177,7 @@ public class CsvS3Loader {
                 Map<String, Object> statsMap = analyzeStatsAndTypes(rows, normHeaders, colTypes);
 
                 // 3. Pass 2: 清洗 & 写入 Parquet
-                tempParquet = writeParquetFile(rows, normHeaders, colTypes);
+                tempParquet = writeParquetFile(fileContext, rows, normHeaders, colTypes);
 
                 // 4. 生成元数据文件 (Schema, Card)
                 String s3Prefix = fileContext.getDocumentId() + "/";
@@ -193,7 +194,7 @@ public class CsvS3Loader {
                 uploadArtifacts(fileContext.getBucketName(), s3Prefix, tempParquet, tempSchema, tempCard);
 
                 // 6. 存入向量库 (Dataset Card)
-                // storeDatasetCard(datasetCard, fileContext, s3Prefix);
+                storeDatasetCard(datasetCard, fileContext, s3Prefix);
 
             } catch (Exception e) {
                 logger.error("CSV 处理异常", e);
@@ -314,7 +315,8 @@ public class CsvS3Loader {
     /**
      * 写入 Parquet 文件
      */
-    private Path writeParquetFile(List<CsvRow> rows, List<String> normHeaders, Map<String, String> colTypes)
+    private Path writeParquetFile(FileContext fileContext, List<CsvRow> rows, List<String> normHeaders,
+            Map<String, String> colTypes)
             throws IOException {
         Path tempParquet = Files.createTempFile("data_", ".parquet");
         List<Map<String, String>> columnDefs = new ArrayList<>();
@@ -325,7 +327,10 @@ public class CsvS3Loader {
             columnDefs.add(def);
         }
 
-        ParquetWriterUtil parquetWriter = new ParquetWriterUtil(duckdbDataSource, tempParquet, columnDefs);
+        // 使用文档ID生成唯一的表名，避免多文件并发时的表名冲突
+        String uniqueTableName = "csv_data_" + fileContext.getDocumentId().replace("-", "_");
+        ParquetWriterUtil parquetWriter = new ParquetWriterUtil(duckdbDataSource, tempParquet, columnDefs,
+                uniqueTableName);
 
         for (CsvRow row : rows) {
             Map<String, Object> record = new HashMap<>();
@@ -436,21 +441,28 @@ public class CsvS3Loader {
      * 将 Dataset Card 存入向量库
      */
     private void storeDatasetCard(String cardContent, FileContext fileContext, String s3Prefix) {
-        FileIdGenerator.generateFileId(fileContext.getKey()); // Init ID gen if needed
-
+        String fileId = FileIdGenerator.generateFileId(fileContext.getKey()); // Init ID gen if needed
+        fileContext.setFileId(fileId);
         DocumentMetadataMap metadataMap = new DocumentMetadataMap(
                 fileContext.getFileName(),
                 fileContext.getDocumentId(),
                 fileContext.getFileId(),
-                "text/plain",
+                S3FileType.CSV.getMimeType(), // 使用 CSV MIME 类型，用于检索时识别为 CSV 数据集
                 true,
                 "0",
                 fileContext.getKbId());
+
+        // 设置来源路径
+        metadataMap.setSource(fileContext.getKey());
+
+        // 设置页码范围（CSV作为数据集，可以设置为 "dataset" 或总行数信息）
+        metadataMap.setPageRange("dataset");
 
         // 增加用于 Router/SQL 的元数据
         Map<String, Object> meta = metadataMap.toMap();
         meta.put("s3_schema_path", s3Prefix + "schema.json");
         meta.put("s3_parquet_path", s3Prefix + "data.parquet");
+        meta.put("s3_card_path", s3Prefix + "dataset_card.txt");
 
         org.springframework.ai.document.Document cardDoc = new org.springframework.ai.document.Document(cardContent,
                 meta);

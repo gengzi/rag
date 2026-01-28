@@ -16,19 +16,21 @@ public class ParquetWriterUtil {
 
     private Connection connection;
     private final List<Map<String, String>> columnDefs;
-    private final String tableName = "csv_data";
+    private final String tableName; // 改为参数化，避免多文件并发时的表名冲突
     private final Path outputPath;
 
-    public ParquetWriterUtil(DataSource dataSource, Path outputPath, List<Map<String, String>> columnDefs)
+    public ParquetWriterUtil(DataSource dataSource, Path outputPath, List<Map<String, String>> columnDefs,
+            String tableName)
             throws IOException {
         this.outputPath = outputPath;
         this.columnDefs = columnDefs;
+        this.tableName = tableName;
 
         try {
             // Get connection from DataSource
             this.connection = dataSource.getConnection();
 
-            // Create Table
+            // Create Table (先删除可能存在的同名表，避免冲突)
             createTable();
 
         } catch (Exception e) {
@@ -37,6 +39,11 @@ public class ParquetWriterUtil {
     }
 
     private void createTable() throws Exception {
+        // 先删除可能存在的同名表（防止重复处理或并发冲突）
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("DROP TABLE IF EXISTS " + tableName);
+        }
+
         StringBuilder sql = new StringBuilder("CREATE TABLE ").append(tableName).append(" (");
         for (int i = 0; i < columnDefs.size(); i++) {
             Map<String, String> col = columnDefs.get(i);

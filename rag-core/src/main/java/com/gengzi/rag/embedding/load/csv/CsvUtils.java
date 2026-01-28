@@ -93,10 +93,15 @@ public class CsvUtils {
     }
 
     /**
-     * 值清洗
-     * 1. 空值归一
-     * 2. 去不可见字符、Trim
-     * 3. 数值清洗
+     * 值清洗 - 严格类型转换策略
+     * 
+     * 一旦推断出目标类型，就强制将所有值转换为该类型
+     * 如果无法转换，返回 null（而不是报错或返回原始字符串）
+     * 这样可以确保列的类型一致性，避免混合类型问题
+     * 
+     * @param value      原始值
+     * @param targetType 目标类型 (DOUBLE, LONG, TIMESTAMP, STRING)
+     * @return 转换后的值，或 null
      */
     public static Object cleanValue(String value, String targetType) {
         if (value == null)
@@ -111,42 +116,91 @@ public class CsvUtils {
             return null;
         }
 
-        if ("DOUBLE".equals(targetType) || "LONG".equals(targetType)) {
-            // 数值清洗: 1,234 -> 1234; ￥12.3 -> 12.3; 12% -> 0.12
-            String numStr = clean.replace(",", "").replace("￥", "").replace("$", "");
+        // 根据目标类型进行严格转换
+        switch (targetType) {
+            case "DOUBLE":
+                return convertToDouble(clean);
+
+            case "LONG":
+                return convertToLong(clean);
+
+            case "TIMESTAMP":
+                return convertToTimestamp(clean);
+
+            case "STRING":
+            default:
+                return clean;
+        }
+    }
+
+    /**
+     * 严格转换为 DOUBLE
+     * 尝试多种数值格式，失败返回 null
+     */
+    private static Object convertToDouble(String value) {
+        try {
+            // 清洗数值：去除千分位、货币符号、百分号
+            String numStr = value.replace(",", "").replace("￥", "").replace("$", "");
+
+            // 处理百分比
             if (numStr.endsWith("%")) {
-                try {
-                    double v = Double.parseDouble(numStr.substring(0, numStr.length() - 1));
-                    return v / 100.0;
-                } catch (NumberFormatException e) {
-                    // ignore
-                }
+                double v = Double.parseDouble(numStr.substring(0, numStr.length() - 1));
+                return v / 100.0;
             }
+
+            // 标准数值转换
             if (NumberUtil.isNumber(numStr)) {
-                if ("LONG".equals(targetType) && !numStr.contains(".")) {
-                    try {
-                        return Long.parseLong(numStr);
-                    } catch (Exception e) {
-                        /* ignore */}
-                }
-                try {
-                    return Double.parseDouble(numStr);
-                } catch (Exception e) {
-                    /* ignore */}
+                return Double.parseDouble(numStr);
             }
+        } catch (Exception e) {
+            // 转换失败，忽略
         }
+        return null; // 无法转换为 DOUBLE，返回 null
+    }
 
-        if ("TIMESTAMP".equals(targetType)) {
-            // 简单的日期尝试解析
+    /**
+     * 严格转换为 LONG
+     * 只接受整数，失败返回 null
+     */
+    private static Object convertToLong(String value) {
+        try {
+            // 清洗数值
+            String numStr = value.replace(",", "").replace("￥", "").replace("$", "");
+
+            // 必须是整数（不能有小数点）
+            if (NumberUtil.isLong(numStr)) {
+                return Long.parseLong(numStr);
+            }
+        } catch (Exception e) {
+            // 转换失败，忽略
+        }
+        return null; // 无法转换为 LONG，返回 null
+    }
+
+    /**
+     * 严格转换为 TIMESTAMP
+     * 尝试解析多种日期格式，失败返回 null
+     */
+    private static Object convertToTimestamp(String value) {
+        try {
+            // Hutool 的 DateUtil.parse 支持多种格式自动识别
+            return cn.hutool.core.date.DateUtil.parse(value).getTime();
+        } catch (Exception e) {
+            // 如果 Hutool 解析失败，尝试一些特殊格式
             try {
-                // Try parsing common formats
-                return cn.hutool.core.date.DateUtil.parse(clean).getTime();
-            } catch (Exception e) {
-                // ignore
+                // 尝试解析 ISO 8601 格式: 2024-01-28T12:00:00
+                if (value.contains("T")) {
+                    return cn.hutool.core.date.DateUtil.parseDateTime(value).getTime();
+                }
+                // 尝试纯日期格式: 2024-01-28
+                if (value.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    return cn.hutool.core.date.DateUtil.parseDate(value).getTime();
+                }
+            } catch (Exception ex) {
+                // 忽略
             }
         }
-
-        return clean;
+        return null; // 无法转换为 TIMESTAMP，返回 null
     }
 
     /**
@@ -167,24 +221,27 @@ public class CsvUtils {
                 continue;
             validSamples++;
 
-            String v = val.trim().replace(",", "").replace("￥", "").replace("$", "").replace("%", "");
+            String v = val.trim();
 
-            boolean isNum = false;
-            // Check numeric
-            if (NumberUtil.isLong(v)) {
-                longCount++;
-                isNum = true;
-            } else if (NumberUtil.isNumber(v)) {
-                doubleCount++;
-                isNum = true;
+            // 优先检查日期（日期比数字更具体，应该优先判断）
+            boolean isDate = false;
+            try {
+                cn.hutool.core.date.DateUtil.parse(v);
+                dateCount++;
+                isDate = true;
+            } catch (Exception e) {
+                // 不是日期，继续检查其他类型
             }
 
-            if (!isNum) {
-                // Check Date
-                try {
-                    cn.hutool.core.date.DateUtil.parse(val.trim());
-                    dateCount++;
-                } catch (Exception e) {
+            // 如果不是日期，再检查是否为数字
+            if (!isDate) {
+                String cleanNum = v.replace(",", "").replace("￥", "").replace("$", "").replace("%", "");
+                if (NumberUtil.isLong(cleanNum)) {
+                    longCount++;
+                } else if (NumberUtil.isNumber(cleanNum)) {
+                    doubleCount++;
+                } else {
+                    // 既不是日期也不是数字
                     stringCount++;
                 }
             }
@@ -193,17 +250,26 @@ public class CsvUtils {
         if (validSamples == 0)
             return "STRING";
 
-        // 优先判断
-        // 如果全是数字 -> LONG/DOUBLE
-        // 如果是数字和日期 -> STRING (混杂)
-        // 主要是 stringCount > 0 -> STRING (Strict)
+        // 优先判断顺序（从严格到宽松）:
+        // 1. 如果有任何纯字符串值（非数字、非日期） -> STRING
+        // 2. 如果大部分是日期 -> TIMESTAMP (优先于数字类型，避免日期被误判为数字)
+        // 3. 如果有浮点数 -> DOUBLE
+        // 4. 否则 -> LONG
 
         if (stringCount > 0)
             return "STRING";
-        if (dateCount > validSamples * 0.9)
-            return "TIMESTAMP"; // 90% 像是日期
+
+        // 日期检测优先于数字类型（避免 '1900-01-08' 被当作数字）
+        // 降低阈值到 50%，因为现在优先检查日期，可以更准确地识别混合列
+        if (dateCount > validSamples * 0.5) // 50% 以上是日期
+            return "TIMESTAMP";
+
         if (doubleCount > 0)
             return "DOUBLE";
-        return "LONG";
+
+        if (longCount > 0)
+            return "LONG";
+
+        return "STRING"; // 兜底
     }
 }

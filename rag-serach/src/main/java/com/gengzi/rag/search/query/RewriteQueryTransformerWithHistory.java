@@ -26,11 +26,13 @@ public class RewriteQueryTransformerWithHistory implements QueryTransformer {
     // 新增{chatHistory}占位符，让大模型参考历史对话
     private static final PromptTemplate DEFAULT_PROMPT_TEMPLATE = new PromptTemplate("""
             基于历史对话记录和当前查询，为{target}检索优化重写查询。
-            要求：1. 结合历史对话理解用户真实需求；
-            2. 删除无关信息，保持简洁具体；
-            3. 若当前查询依赖历史内容，需补充完整关键信息。
+            要求：
+            1.结合历史对话理解用户真实需求；
+            2.删除无关信息，保持简洁具体；
+            3.若当前查询依赖历史内容，需补充完整关键信息。
+            4.将用户的最新问题重写为一个语义完整、独立可搜索的句子。
+            5.如果问题中有指代词（如"它"、"那个"），请根据历史替换为具体名词,补全缺失的主语和谓语。
             只返回重写后的查询，无需补充重写原因
-
             历史对话记录：
             {chatHistory}
 

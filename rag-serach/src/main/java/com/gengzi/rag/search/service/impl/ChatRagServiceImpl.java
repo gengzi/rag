@@ -35,6 +35,11 @@ public class ChatRagServiceImpl implements ChatRagService {
 
     @Autowired
     private ChatClient deepseekChatClientByRagNoMemory;
+//
+//    @Autowired
+//    private ChatClient deepseekChatClientByRag;
+
+
 
     @Autowired
     private UserRepository userRepository;

@@ -49,7 +49,7 @@ chatmodel:
 rerankermodel:
   apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
   baseUrl: https://api.siliconflow.cn
-  model: BAAI/bge-reranker-v2-m3
+  model: Qwen/Qwen3-Reranker-0.6B
   instruction: "Please rerank the documents based on the query."
 
 ## 各环节系统默认提示词配置

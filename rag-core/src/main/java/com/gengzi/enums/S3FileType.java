@@ -11,6 +11,7 @@ public enum S3FileType {
     TEXT_PLAIN("text/plain", true, false, ".txt"),
     CSV("text/csv", true, false, ".csv"),
     JSON("application/json", true, false, ".json"),
+    JSONL("application/jsonl", true, false, ".jsonl"),
     XML("application/xml", true, false, ".xml"),
 
     // 图像类型
@@ -107,7 +108,8 @@ public enum S3FileType {
     }
 
     public boolean hasExtension(String extension) {
-        if (extension == null) return false;
+        if (extension == null)
+            return false;
         String lowerExt = extension.startsWith(".") ? extension.toLowerCase() : "." + extension.toLowerCase();
         return Arrays.asList(extensions).contains(lowerExt);
     }

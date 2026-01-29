@@ -71,6 +71,9 @@ public class CsvS3Loader {
     @Autowired
     private CsvHeaderExtractor csvHeaderExtractor;
 
+    @Autowired
+    private com.gengzi.rag.embedding.load.common.DatasetCardEnhancer datasetCardEnhancer;
+
     public void csvParse(String filePath, Document document) {
         String documentId = document.getId();
         String kbId = document.getKbId();
@@ -398,29 +401,46 @@ public class CsvS3Loader {
     }
 
     /**
-     * 生成数据集卡片内容
+     * 生成数据集卡片内容（LLM 增强版）
      */
     @SuppressWarnings("unchecked")
     private String generateDatasetCard(FileContext fileContext, int rowCount, Map<String, Object> schemaJson,
             List<CsvRow> rows) {
         List<Map<String, Object>> columnsInfo = (List<Map<String, Object>>) schemaJson.get("columns");
 
-        StringBuilder cardBuilder = new StringBuilder();
-        cardBuilder.append("Dataset Name: ").append(fileContext.getFileName()).append("\n");
-        cardBuilder.append("Row Count: ").append(rowCount).append("\n");
-        cardBuilder.append("Columns:\n");
+        // 1. 生成基础结构化信息
+        StringBuilder rawCardBuilder = new StringBuilder();
+        rawCardBuilder.append("数据集名称: ").append(fileContext.getFileName()).append("\n");
+        rawCardBuilder.append("记录数: ").append(rowCount).append("\n");
+        rawCardBuilder.append("字段列表:\n");
+
         for (Map<String, Object> col : columnsInfo) {
-            cardBuilder.append("- ").append(col.get("col_norm"))
+            rawCardBuilder.append("- ").append(col.get("col_norm"))
                     .append(" (").append(col.get("duckdb_type")).append("): ")
-                    .append(col.get("col_name")).append("\n");
+                    .append(col.get("col_name"));
+
+            // 添加样例值
+            Object examples = col.get("examples");
+            if (examples instanceof List) {
+                List<String> exList = (List<String>) examples;
+                if (!exList.isEmpty()) {
+                    rawCardBuilder.append(" | 示例: ")
+                            .append(String.join(", ", exList.subList(0, Math.min(3, exList.size()))));
+                }
+            }
+            rawCardBuilder.append("\n");
         }
-        cardBuilder.append("\nSample Data:\n");
-        // 添加少量样用于预览
+
+        rawCardBuilder.append("\n样本数据:\n");
         for (int i = 0; i < Math.min(rows.size(), 3); i++) {
-            cardBuilder.append(rows.get(i).getRawList().stream().limit(5).collect(Collectors.joining(", ")))
+            rawCardBuilder.append(rows.get(i).getRawList().stream().limit(5).collect(Collectors.joining(", ")))
                     .append("...\n");
         }
-        return cardBuilder.toString();
+
+        String rawCard = rawCardBuilder.toString();
+
+        // 2. 使用 LLM 生成自然语言描述
+        return datasetCardEnhancer.enhanceSafely(rawCard, fileContext.getFileName());
     }
 
     /**

@@ -123,6 +123,8 @@ public class ChatServiceImpl implements ChatService {
                 )
                 .index()
                 .doOnNext(tuple -> {
+                    //TODO 进行消息的合并
+
                     saveAndSend(messageId, sink, tuple.getT1(), tuple.getT2(), stream, hash, lastSeq);
                 })
                 .doOnComplete(

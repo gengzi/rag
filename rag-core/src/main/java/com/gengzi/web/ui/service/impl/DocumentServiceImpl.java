@@ -36,7 +36,6 @@ import java.util.*;
 @Service
 public class DocumentServiceImpl implements DocumentService {
 
-
     public static final String IMG_SUFFIX = "layout_det_res.jpeg";
     @Autowired
     private DocumentRepository documentRepository;
@@ -53,6 +52,12 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Autowired
     private CsvS3Loader csvS3Loader;
+
+    @Autowired
+    private com.gengzi.rag.embedding.load.json.JsonS3Loader jsonS3Loader;
+
+    @Autowired
+    private com.gengzi.rag.embedding.load.excel.ExcelS3Loader excelS3Loader;
 
     @Value("${esVectorstore.index-name}")
     private String indexName;
@@ -78,6 +83,10 @@ public class DocumentServiceImpl implements DocumentService {
         String contentType = headObjectResponse.contentType();
         S3FileType s3FileType = S3FileType.fromMimeType(contentType);
         // 使用switch处理不同文件类型
+        // 如果无法通过MimeType识别（如application/octet-stream），尝试通过文件名/后缀识别
+        if (s3FileType == S3FileType.UNKNOWN) {
+            s3FileType = S3FileType.fromFileName(file);
+        }
         switch (s3FileType) {
             case PDF:
                 // 处理pdf的解析流程
@@ -88,13 +97,17 @@ public class DocumentServiceImpl implements DocumentService {
                 wordConvertByMarkItDownReader.wordParse(file, document);
                 break;
             case JSON:
-
+            case JSONL:
+                // 处理 JSON/JSONL 的解析流程
+                jsonS3Loader.jsonParse(file, document);
                 break;
             case CSV:
                 csvS3Loader.csvParse(file, document);
                 break;
-            case XLS, XLSX:
-
+            case XLS:
+            case XLSX:
+                // 处理 Excel 的解析流程
+                excelS3Loader.excelParse(file, document);
                 break;
             case UNKNOWN:
                 break;
@@ -169,8 +182,7 @@ public class DocumentServiceImpl implements DocumentService {
         SearchRequest searchRequest = SearchRequest.of(sr -> sr
                 .index(indexName)
                 .query(q -> q.term(m -> m.field("metadata.documentId").value(documentId)))
-                .size(1000)
-        );
+                .size(1000));
         try {
             SearchResponse<Map> search = elasticsearchClient.search(searchRequest, Map.class);
             List<Hit<Map>> hits = search.hits().hits();
@@ -221,23 +233,23 @@ public class DocumentServiceImpl implements DocumentService {
     public Map<String, Object> searchContent(String question, int page, int size) throws IOException {
         // 1. 构建查询条件（仅检索content字段）
         MatchQuery matchQuery = MatchQuery.of(mq -> mq
-                        .field("content")  // 只检索content字段
-                        .query(question)   // 长文本问题作为查询词
-//                .analyzer("ik_max_word")  // 使用IK分词器（如需中文分词）
+                .field("content") // 只检索content字段
+                .query(question) // 长文本问题作为查询词
+        // .analyzer("ik_max_word") // 使用IK分词器（如需中文分词）
         );
 
         // 2. 配置高亮规则
         HighlightField highlightField = HighlightField.of(hf -> hf
-                .preTags("<em style='color:red;font-weight:bold'>")  // 高亮前缀
-                .postTags("</em>")  // 高亮后缀
-                .fragmentSize(300)  // 每个高亮片段长度
-                .numberOfFragments(3)  // 最多返回3个片段
+                .preTags("<em style='color:red;font-weight:bold'>") // 高亮前缀
+                .postTags("</em>") // 高亮后缀
+                .fragmentSize(300) // 每个高亮片段长度
+                .numberOfFragments(3) // 最多返回3个片段
         );
         NamedValue<HighlightField> namedHighlightField = NamedValue.of("content", highlightField);
 
         Highlight highlight = Highlight.of(h -> h
-                .fields(List.of(namedHighlightField))  // 仅对content字段高亮
-                .requireFieldMatch(true)  // 只高亮匹配的字段
+                .fields(List.of(namedHighlightField)) // 仅对content字段高亮
+                .requireFieldMatch(true) // 只高亮匹配的字段
         );
 
         // 3. 构建搜索请求
@@ -245,21 +257,18 @@ public class DocumentServiceImpl implements DocumentService {
                 .index(indexName)
                 .query(q -> q.match(matchQuery))
                 .highlight(highlight)
-                .from((page - 1) * size)  // 分页起始位置
-                .size(size)         // 每页数量
-                .sort(s -> s              // 增加排序，确保分页稳定
+                .from((page - 1) * size) // 分页起始位置
+                .size(size) // 每页数量
+                .sort(s -> s // 增加排序，确保分页稳定
                         .field(f -> f
                                 .field("_score")
-                                .order(SortOrder.Desc)
-                        )
-                )
-        );
+                                .order(SortOrder.Desc))));
 
-//        SearchRequest searchRequest = SearchRequest.of(sr -> sr
-//                .index("rag_store_new")
-//                .query(q -> q.match(m -> m.field("content").query(question)))
-//                .size(10)
-//        );
+        // SearchRequest searchRequest = SearchRequest.of(sr -> sr
+        // .index("rag_store_new")
+        // .query(q -> q.match(m -> m.field("content").query(question)))
+        // .size(10)
+        // );
 
         // 4. 执行搜索
         SearchResponse<Map> response = elasticsearchClient.search(searchRequest, Map.class);
@@ -280,15 +289,15 @@ public class DocumentServiceImpl implements DocumentService {
         }
 
         // 6. 计算分页元数据
-        long totalHits = response.hits().total().value();  // 获取总匹配数
-        int totalPages = (int) Math.ceil((double) totalHits / size);  // 计算总页数
+        long totalHits = response.hits().total().value(); // 获取总匹配数
+        int totalPages = (int) Math.ceil((double) totalHits / size); // 计算总页数
 
         // 7. 组装返回结果
         Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("data", results);         // 当前页数据
-        responseMap.put("page", page);            // 当前页码
-        responseMap.put("size", size);            // 每页大小
-        responseMap.put("total", totalHits);      // 总条数
+        responseMap.put("data", results); // 当前页数据
+        responseMap.put("page", page); // 当前页码
+        responseMap.put("size", size); // 每页大小
+        responseMap.put("total", totalHits); // 总条数
         responseMap.put("totalPages", totalPages); // 总页数
 
         return responseMap;

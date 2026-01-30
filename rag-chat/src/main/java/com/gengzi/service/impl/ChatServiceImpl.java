@@ -1,6 +1,7 @@
 package com.gengzi.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
@@ -17,10 +18,7 @@ import com.gengzi.request.ChatMsgRecordReq;
 import com.gengzi.request.ChatReq;
 import com.gengzi.request.MessageContext;
 import com.gengzi.response.*;
-import com.gengzi.service.ChatService;
-import com.gengzi.service.DeepResearchService;
-import com.gengzi.service.ExcalidrawService;
-import com.gengzi.service.PPTGenerateService;
+import com.gengzi.service.*;
 import org.redisson.api.*;
 import org.redisson.api.stream.StreamAddArgs;
 import org.redisson.client.codec.StringCodec;
@@ -74,6 +72,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private ExcalidrawService excalidrawService;
 
+    @Autowired
+    private TextToSqlDuckDbService textToSqlDuckDbService;
+
     private com.gengzi.dao.Message bulidMessage(String messageId, String messageRole, Conversation conversation, ChatMessage chatMessage) {
         com.gengzi.dao.Message messageRecord = new com.gengzi.dao.Message();
         messageRecord.setConversation(conversation.getId());
@@ -117,15 +118,18 @@ public class ChatServiceImpl implements ChatService {
                             ChatMessageResponse data = sse.data();
                             if (data != null) {
                                 logger.info("收到响应分片：{}", data.getContent());
-                                responseParts.add(data);
+                                if (ObjectUtil.isNotEmpty(data.getContent()) && !"null".equals(data.getContent().toString())) {
+                                    responseParts.add(data);
+                                }
                             }
                         }
                 )
                 .index()
                 .doOnNext(tuple -> {
                     //TODO 进行消息的合并
-
-                    saveAndSend(messageId, sink, tuple.getT1(), tuple.getT2(), stream, hash, lastSeq);
+                    if (ObjectUtil.isNotEmpty(tuple.getT2()) && !"null".equals(tuple.getT2().toString())) {
+                        saveAndSend(messageId, sink, tuple.getT1(), tuple.getT2(), stream, hash, lastSeq);
+                    }
                 })
                 .doOnComplete(
                         () -> {
@@ -371,6 +375,16 @@ public class ChatServiceImpl implements ChatService {
             if (Agent.EXCALIDRAW_AGENT.getCode().equals(req.getAgentId())) {
                 try {
                     serverSentEventFlux = excalidrawService.excalidrawGenerate(req);
+                } catch (GraphRunnerException e) {
+                    throw new RuntimeException(e);
+                }
+                sinksSend(req, sink, serverSentEventFlux);
+                return;
+            }
+
+            if (Agent.TEXT_TO_SQL_DUCKDB_AGENT.getCode().equals(req.getAgentId())) {
+                try {
+                    serverSentEventFlux = textToSqlDuckDbService.textTosql(req);
                 } catch (GraphRunnerException e) {
                     throw new RuntimeException(e);
                 }

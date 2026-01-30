@@ -12,15 +12,21 @@ spring:
       api-key: test
       embedding:
         base-url: https://api.siliconflow.cn
-        api-key: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
+        api-key: sk-awezvttmbulfwhhiuyzcajlrjxvxxtxqxtigtxddrnokfjuo
         options:
           model: Qwen/Qwen3-Embedding-0.6B
           dimensions: 1024
   datasource:
-    url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: 111
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    primary:
+      url: jdbc:mysql://localhost:3306/rag_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      username: root
+      password: 111
+      driver-class-name: com.mysql.cj.jdbc.Driver
+  duckdb:
+    datasource:
+      # DuckDB 不需要用户名密码，内存模式用 jdbc:duckdb:，文件模式指定路径
+      jdbc-url: 'jdbc:duckdb:'
+      driver-class-name: org.duckdb.DuckDBDriver
   jpa:
     show-sql: true # 打印SQL语句（开发环境用）
     properties:
@@ -32,6 +38,18 @@ spring:
     username: elastic
     password: 5KH90zCh
 
+## 对象存储相关配置
+s3:
+  endpoint: http://192.168.31.46:8886
+  access-key: minioadmin
+  secret-key: minioadmin
+  default-bucket-name: rag
+  async-netty-pool:
+    core-threads: 10
+    max-threads: 50
+    connection-timeout: 100
+    max-pending-connection-acquires: 1000
+
 
 ## es相关配置
 esVectorstore:
@@ -41,13 +59,13 @@ esVectorstore:
   embedding-field-name: q_1024_vec
 
 chatmodel:
-  apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
+  apiKey: sk-awezvttmbulfwhhiuyzcajlrjxvxxtxqxtigtxddrnokfjuo
   baseUrl: https://api.siliconflow.cn
   model: deepseek-ai/DeepSeek-V3
   ## 由于构建rag程序，设置模型的温度低一点。较高的值（例如 0.8）会使输出更具随机性，而较低的值（例如 0.2）会使输出更具针对性和确定性
   temperature: 0.5
 rerankermodel:
-  apiKey: sk-inacptrpbndfmfuykzvfqsprxcbilggwiphlnakbjnfxiezk
+  apiKey: sk-awezvttmbulfwhhiuyzcajlrjxvxxtxqxtigtxddrnokfjuo
   baseUrl: https://api.siliconflow.cn
   model: Qwen/Qwen3-Reranker-0.6B
   instruction: "Please rerank the documents based on the query."

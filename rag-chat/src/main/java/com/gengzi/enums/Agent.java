@@ -8,6 +8,7 @@ public enum Agent {
     DEEPRESEARCH_AGENT("DeepResearch", "深度检索", ""),
     PPTGENERATE_AGENT("PPTGenerate", "PPT生成", ""),
     EXCALIDRAW_AGENT("Excalidraw", "绘图助手", ""),
+    TEXT_TO_SQL_DUCKDB_AGENT("TextToSqlDuckDb", "数据分析助手", ""),
     ;
     private final String agentCode;
     private final String description;

@@ -74,6 +74,7 @@ dependencies {
     implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-agent-framework'
 
     implementation 'org.apache.rocketmq:rocketmq-spring-boot-starter:2.3.0'
+
 }
 
 test {

@@ -28,6 +28,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
   const [showPptTag, setShowPptTag] = useState(false);
   const [showDeepResearchTag, setShowDeepResearchTag] = useState(false);
   const [showExcalidrawTag, setShowExcalidrawTag] = useState(false);
+  const [showDataAnalysisTag, setShowDataAnalysisTag] = useState(false);
   const [runMessageId, setRunMessageId] = useState<string>(''); // 正在输出的消息ID
   const [isContinueReading, setIsContinueReading] = useState(false); // 是否正在续读
 
@@ -169,6 +170,8 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         agentId = "DeepResearch";
       } else if (showExcalidrawTag) {
         agentId = "Excalidraw";
+      } else if (showDataAnalysisTag) {
+        agentId = "TextToSqlDuckDb";
       }
       
       await sendMessage(input, agentId);
@@ -180,6 +183,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
       setShowPptTag(false);
       setShowDeepResearchTag(false);
       setShowExcalidrawTag(false);
+      setShowDataAnalysisTag(false);
 
       // 重新聚焦到输入框
       setTimeout(() => {
@@ -194,7 +198,7 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
         description: `发送消息失败: ${error instanceof Error ? error.message : '未知错误'}`
       });
     }
-  }, [input, isLoading, sendMessage, showPptTag, showDeepResearchTag, toast]);
+  }, [input, isLoading, sendMessage, showPptTag, showDeepResearchTag, showExcalidrawTag, showDataAnalysisTag, toast]);
 
   const handleInputChange = useCallback((value: string) => {
     setInput(value);
@@ -316,9 +320,11 @@ export default function NewChatPage({ params }: { params: { id: string } }) {
           showPptTag={showPptTag}
           showDeepResearchTag={showDeepResearchTag}
           showExcalidrawTag={showExcalidrawTag}
+          showDataAnalysisTag={showDataAnalysisTag}
           onPptTagToggle={() => setShowPptTag(!showPptTag)}
           onDeepResearchTagToggle={() => setShowDeepResearchTag(!showDeepResearchTag)}
           onExcalidrawTagToggle={() => setShowExcalidrawTag(!showExcalidrawTag)}
+          onDataAnalysisTagToggle={() => setShowDataAnalysisTag(!showDataAnalysisTag)}
         />
       </div>
     </DashboardLayout>

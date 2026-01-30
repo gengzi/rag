@@ -12,9 +12,11 @@ interface ChatInputProps {
   showPptTag?: boolean;
   showDeepResearchTag?: boolean;
   showExcalidrawTag?: boolean;
+  showDataAnalysisTag?: boolean;
   onPptTagToggle?: () => void;
   onDeepResearchTagToggle?: () => void;
   onExcalidrawTagToggle?: () => void;
+  onDataAnalysisTagToggle?: () => void;
   placeholder?: string;
   className?: string;
 }
@@ -32,9 +34,11 @@ const ChatInputFixed = forwardRef<HTMLInputElement, ChatInputProps>(({
   showPptTag = false,
   showDeepResearchTag = false,
   showExcalidrawTag = false,
+  showDataAnalysisTag = false,
   onPptTagToggle,
   onDeepResearchTagToggle,
   onExcalidrawTagToggle,
+  onDataAnalysisTagToggle,
   placeholder = "输入您的问题...",
   className = ""
 }, ref) => {
@@ -61,7 +65,7 @@ const ChatInputFixed = forwardRef<HTMLInputElement, ChatInputProps>(({
   }, [input, isLoading, loadingChat, focused, onInputChange, onSubmit]);
 
   const isDisabled = disabled || isLoading || loadingChat;
-  const showPlaceholder = !showPptTag && !showDeepResearchTag && !showExcalidrawTag;
+  const showPlaceholder = !showPptTag && !showDeepResearchTag && !showExcalidrawTag && !showDataAnalysisTag;
 
   return (
     <div className={`border-t border-input p-4 bg-background ${className}`}>
@@ -78,7 +82,7 @@ const ChatInputFixed = forwardRef<HTMLInputElement, ChatInputProps>(({
             onBlur={() => setFocused(false)}
             disabled={isDisabled}
             data-input="chat"
-            className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 disabled:opacity-50 ${showPptTag || showDeepResearchTag || showExcalidrawTag ? 'pl-32' : 'pl-4'}`}
+            className={`w-full min-w-0 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 hover:border-primary/50 disabled:opacity-50 ${showPptTag || showDeepResearchTag || showExcalidrawTag || showDataAnalysisTag ? 'pl-32' : 'pl-4'}`}
             aria-label="聊天消息输入"
             aria-describedby="chat-hint"
             aria-disabled={isDisabled}
@@ -122,6 +126,20 @@ const ChatInputFixed = forwardRef<HTMLInputElement, ChatInputProps>(({
               <button
                 type="button"
                 onClick={() => onExcalidrawTagToggle()}
+                className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* 数据分析助手标签 */}
+          {showDataAnalysisTag && onDataAnalysisTagToggle && (
+            <div className="absolute left-1 top-1/2 transform -translate-y-1/2 h-8 px-3 rounded-md bg-blue-600 text-white text-xs font-medium flex items-center hover:bg-blue-700 transition-colors">
+              数据分析助手
+              <button
+                type="button"
+                onClick={() => onDataAnalysisTagToggle()}
                 className="ml-1 flex items-center justify-center w-3 h-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
               >
                 ×
@@ -181,10 +199,21 @@ const ChatInputFixed = forwardRef<HTMLInputElement, ChatInputProps>(({
             <button
               type="button"
               onClick={() => onExcalidrawTagToggle()}
-              disabled={showPptTag || showDeepResearchTag || showExcalidrawTag || isDisabled}
+              disabled={showPptTag || showDeepResearchTag || showExcalidrawTag || showDataAnalysisTag || isDisabled}
               className="h-7 px-3 text-xs bg-gray-200 hover:bg-gray-300 text-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               绘图助手
+            </button>
+          )}
+
+          {onDataAnalysisTagToggle && (
+            <button
+              type="button"
+              onClick={() => onDataAnalysisTagToggle()}
+              disabled={showPptTag || showDeepResearchTag || showExcalidrawTag || showDataAnalysisTag || isDisabled}
+              className="h-7 px-3 text-xs bg-gray-200 hover:bg-gray-300 text-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              数据分析助手
             </button>
           )}
         </div>

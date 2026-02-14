@@ -9,12 +9,19 @@ import java.util.UUID;
 
 public class TeamWorkspace {
 
+    // 团队唯一标识
     private final String id;
+    // 团队名称
     private final String name;
+    // 团队总目标（由 Team Lead 定义）
     private final String objective;
+    // 团队成员列表（key: teammateId）
     private final Map<String, TeammateAgent> teammates;
+    // 共享任务列表（key: taskId）
     private final Map<String, TeamTask> tasks;
+    // 团队邮箱（成员间通信）
     private final List<TeamMessage> mailbox;
+    // 创建时间
     private final Instant createdAt;
 
     public TeamWorkspace(String name, String objective) {

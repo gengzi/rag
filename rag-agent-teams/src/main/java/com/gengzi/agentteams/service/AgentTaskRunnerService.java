@@ -16,7 +16,9 @@ import java.util.stream.Collectors;
 @Service
 public class AgentTaskRunnerService {
 
+    // 团队状态与任务流转服务
     private final TeamRegistryService teamRegistryService;
+    // Spring AI ChatClient 构建器（由 starter 自动注入）
     private final ChatClient.Builder chatClientBuilder;
 
     public AgentTaskRunnerService(TeamRegistryService teamRegistryService, ChatClient.Builder chatClientBuilder) {
@@ -24,6 +26,7 @@ public class AgentTaskRunnerService {
         this.chatClientBuilder = chatClientBuilder;
     }
 
+    // 执行指定任务：组装上下文 -> 调模型 -> 回写任务结果
     public String runTask(String teamId, String taskId, String teammateIdOverride) {
         TeamWorkspace team = teamRegistryService.getTeam(teamId);
         TeamTask task;
@@ -42,6 +45,7 @@ public class AgentTaskRunnerService {
             teammate = teamRegistryService.getTeammate(team, teammateId);
 
             if (task.getStatus() == TaskStatus.PENDING) {
+                // 允许“未显式 claim”直接执行，但依赖必须已完成
                 if (!teamRegistryService.isTaskReady(team, task)) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Task dependencies are not completed");
                 }
@@ -55,6 +59,7 @@ public class AgentTaskRunnerService {
             unread = teamRegistryService.consumeUnreadMessages(team, teammate);
         }
 
+        // 将团队目标、依赖结果、邮箱消息和个人历史拼成执行提示词
         String prompt = buildPrompt(team, task, teammate, unread);
         ChatClient chatClient = chatClientBuilder.build();
         String output = chatClient.prompt()
@@ -64,6 +69,7 @@ public class AgentTaskRunnerService {
                 .content();
 
         synchronized (team) {
+            // 写入 teammate 私有历史，便于后续任务继承上下文
             teammate.getHistory().add("TASK: " + task.getTitle() + "\n" + task.getDescription());
             teammate.getHistory().add("OUTPUT: " + output);
             teamRegistryService.completeTask(teamId, taskId, teammate.getId(), output);
@@ -71,6 +77,7 @@ public class AgentTaskRunnerService {
         return output;
     }
 
+    // 系统提示：约束该 teammate 的角色和输出风格
     private String systemPrompt(TeammateAgent teammate) {
         return "You are a specialized teammate in an AI agent team. "
                 + "Role: " + teammate.getRole() + ". "
@@ -78,6 +85,7 @@ public class AgentTaskRunnerService {
                 + "If context is missing, state assumptions explicitly.";
     }
 
+    // 用户提示：拼接可执行上下文（依赖、消息、历史）
     private String buildPrompt(TeamWorkspace team, TeamTask task, TeammateAgent teammate, List<TeamMessage> unread) {
         String dependencyContext = task.getDependencyTaskIds().stream()
                 .map(id -> {

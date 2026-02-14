@@ -21,9 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class TeamRegistryService {
 
-    // 存放所有的team
+    // 内存态 team 仓库（当前实现未持久化到数据库）
     private final Map<String, TeamWorkspace> teams = new ConcurrentHashMap<>();
 
+    // 创建团队，并注册 teammate
     public TeamWorkspace createTeam(String name, String objective, List<CreateTeamRequest.TeammateSpec> teammateSpecs) {
         TeamWorkspace team = new TeamWorkspace(name, objective);
         for (CreateTeamRequest.TeammateSpec spec : teammateSpecs) {
@@ -34,8 +35,10 @@ public class TeamRegistryService {
         return team;
     }
 
+    // 创建任务：校验指派人和依赖任务是否存在
     public TeamTask createTask(String teamId, String title, String description, List<String> dependencies, String assigneeId) {
         TeamWorkspace team = getTeam(teamId);
+        // 以 team 为锁粒度，保证同团队任务修改串行
         synchronized (team) {
             if (assigneeId != null && !assigneeId.isBlank() && !team.getTeammates().containsKey(assigneeId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown assigneeId");
@@ -51,6 +54,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 认领任务：只有依赖全部完成后才允许进入 IN_PROGRESS
     public TeamTask claimTask(String teamId, String taskId, String teammateId) {
         TeamWorkspace team = getTeam(teamId);
         synchronized (team) {
@@ -68,6 +72,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 完成任务：只有任务 assignee 才允许提交结果
     public TeamTask completeTask(String teamId, String taskId, String teammateId, String result) {
         TeamWorkspace team = getTeam(teamId);
         synchronized (team) {
@@ -85,6 +90,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 发送成员消息到团队邮箱
     public TeamMessage sendMessage(String teamId, String fromId, String toId, String content) {
         TeamWorkspace team = getTeam(teamId);
         synchronized (team) {
@@ -96,6 +102,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 按游标消费某个成员的未读消息，并推进游标
     public List<TeamMessage> consumeUnreadMessages(TeamWorkspace team, TeammateAgent teammate) {
         synchronized (team) {
             List<TeamMessage> mailbox = team.getMailbox();
@@ -111,6 +118,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 查询 team，不存在返回 404
     public TeamWorkspace getTeam(String teamId) {
         TeamWorkspace team = teams.get(teamId);
         if (team == null) {
@@ -119,6 +127,7 @@ public class TeamRegistryService {
         return team;
     }
 
+    // 聚合当前团队状态给前端展示
     public TeamStateResponse getState(String teamId) {
         TeamWorkspace team = getTeam(teamId);
         synchronized (team) {
@@ -159,6 +168,7 @@ public class TeamRegistryService {
         }
     }
 
+    // 查询 teammate，不存在返回 400
     public TeammateAgent getTeammate(TeamWorkspace team, String teammateId) {
         TeammateAgent teammate = team.getTeammates().get(teammateId);
         if (teammate == null) {
@@ -167,6 +177,7 @@ public class TeamRegistryService {
         return teammate;
     }
 
+    // 查询 task，不存在返回 404
     public TeamTask getTask(TeamWorkspace team, String taskId) {
         TeamTask task = team.getTasks().get(taskId);
         if (task == null) {
@@ -175,6 +186,7 @@ public class TeamRegistryService {
         return task;
     }
 
+    // 判断任务是否可执行：全部依赖任务必须 COMPLETED
     public boolean isTaskReady(TeamWorkspace team, TeamTask task) {
         for (String dependencyId : task.getDependencyTaskIds()) {
             TeamTask dependencyTask = team.getTasks().get(dependencyId);

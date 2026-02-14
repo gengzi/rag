@@ -99,3 +99,45 @@ gradle bootRun
 - `src/main/java/com/gengzi/agentteams/service/AgentTaskRunnerService.java`
 - `src/main/resources/application.yml`
 
+## 4. 设计文档
+
+### 4.1 完整设计文档
+
+📚 **详细设计文档**: [docs/DESIGN.md](docs/DESIGN.md)
+
+包含以下内容：
+- 🏗️ **架构设计**: 分层架构、模块组织、部署架构
+- 💻 **核心代码设计**: 领域模型、服务层、代码示例
+- 🔄 **流程设计**: REST API 流程、任务依赖解析、自动执行循环
+- 📊 **流程图**: Mermaid 时序图、状态图、流程图
+- 🎨 **设计模式**: DDD 模式、并发模式、行为模式
+- 🔧 **技术栈**: 依赖说明、配置管理、API 映射
+- 🚀 **扩展规划**: 短期改进、长期架构演进
+
+### 4.2 架构概览
+
+📐 **架构概览文档**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+快速了解项目架构的核心设计：
+- 📐 分层架构图
+- 🏛️ 核心领域模型
+- 🔄 关键流程图（时序图、状态机、依赖解析）
+- 🎯 设计模式速查
+- 🔧 技术栈总结
+
+### 4.3 快速链接
+
+**设计文档**:
+- [项目概述](docs/DESIGN.md#1-项目概述)
+- [架构设计](docs/DESIGN.md#2-架构设计)
+- [领域模型](docs/DESIGN.md#31-领域模型-domain-layer)
+- [任务执行流程](docs/DESIGN.md#41-rest-api-任务执行流程)
+- [关键设计模式](docs/DESIGN.md#5-关键设计模式)
+- [配置说明](docs/DESIGN.md#7-配置说明)
+
+**架构概览**:
+- [分层架构](docs/ARCHITECTURE.md#分层架构)
+- [核心领域模型](docs/ARCHITECTURE.md#核心领域模型)
+- [关键流程图](docs/ARCHITECTURE.md#关键流程图)
+- [设计模式](docs/ARCHITECTURE.md#设计模式)
+

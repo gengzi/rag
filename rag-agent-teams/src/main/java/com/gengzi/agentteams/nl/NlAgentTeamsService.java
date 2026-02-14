@@ -6,8 +6,8 @@ import com.gengzi.agentteams.api.CreateTeamRequest;
 import com.gengzi.agentteams.api.TeamStateResponse;
 import com.gengzi.agentteams.domain.TaskStatus;
 import com.gengzi.agentteams.domain.TeamTask;
-import com.gengzi.agentteams.domain.TeamWorkspace;
 import com.gengzi.agentteams.domain.TeammateAgent;
+import com.gengzi.agentteams.domain.TeamWorkspace;
 import com.gengzi.agentteams.service.AgentTaskRunnerService;
 import com.gengzi.agentteams.service.LlmRetryService;
 import com.gengzi.agentteams.service.TeamRegistryService;
@@ -79,8 +79,12 @@ public class NlAgentTeamsService {
                 case "ADD_TASK" -> doAddTask(teamId, action, sink);
                 case "SEND_MESSAGE" -> doSendMessage(teamId, action);
                 case "BROADCAST" -> doBroadcastMessage(teamId, action);
-                // RUN_TASK 在这里表示“启动自动持续执行，直到结束”
-                case "RUN_TASK" -> runTeamUntilFinished(teamId, sink);
+                case "RUN_TASK" -> {
+                    String pauseMessage = runTeamUntilFinished(teamId, sink);
+                    if (pauseMessage != null && !pauseMessage.isBlank()) {
+                        assistantReply = pauseMessage;
+                    }
+                }
                 case "GET_STATE" -> teamRegistryService.getState(requireTeamId(teamId));
                 case "CHAT" -> {
                     if (assistantReply == null || assistantReply.isBlank()) {
@@ -142,7 +146,6 @@ public class NlAgentTeamsService {
         if (assigneeId == null || assigneeId.isBlank()) {
             assigneeId = selectExecutorForPlannedTask(team);
         }
-
         TeamTask created = teamRegistryService.createTask(
                 resolvedTeamId,
                 valueOr(action.getTitle(), "未命名任务"),
@@ -182,7 +185,7 @@ public class NlAgentTeamsService {
         }
     }
 
-    private void runTeamUntilFinished(String teamId, Consumer<NlWorkflowEvent> sink) {
+    private String runTeamUntilFinished(String teamId, Consumer<NlWorkflowEvent> sink) {
         String resolvedTeamId = requireTeamId(teamId);
         emit(sink, "RUN_LOOP_START", "开始自动执行任务流程", Map.of("teamId", resolvedTeamId));
 
@@ -191,19 +194,26 @@ public class NlAgentTeamsService {
         while (round < maxRounds) {
             round++;
             TeamWorkspace team = teamRegistryService.getTeam(resolvedTeamId);
+
+            LeaderDecision decision = leaderReviewAndAdjust(team, sink);
+            if (decision.needsUserInput) {
+                String question = valueOr(decision.userQuestion, "需要你确认下一步策略，请回复后继续。");
+                emit(sink, "WAIT_USER_INPUT", "等待用户指令", Map.of("question", question));
+                return question;
+            }
+
             List<TeamTask> allTasks = team.getTasks().values().stream()
                     .sorted(Comparator.comparing(TeamTask::getCreatedAt))
                     .toList();
-
             if (allTasks.isEmpty()) {
                 emit(sink, "RUN_LOOP_END", "当前没有任务可执行", null);
-                return;
+                return null;
             }
 
             boolean allDone = allTasks.stream().allMatch(task -> task.getStatus() == TaskStatus.COMPLETED);
             if (allDone) {
                 emit(sink, "RUN_LOOP_END", "所有任务已完成", Map.of("round", round));
-                return;
+                return null;
             }
 
             List<TeamTask> inProgress = allTasks.stream()
@@ -216,7 +226,7 @@ public class NlAgentTeamsService {
 
             if (inProgress.isEmpty() && readyPending.isEmpty()) {
                 emit(sink, "RUN_BLOCKED", "任务执行被阻塞：存在未满足依赖或循环依赖", null);
-                return;
+                return null;
             }
 
             emit(sink, "ROUND_START", "开始执行轮次 " + round,
@@ -235,7 +245,110 @@ public class NlAgentTeamsService {
 
             emit(sink, "ROUND_END", "完成执行轮次 " + round, null);
         }
+
         emit(sink, "RUN_ABORT", "达到最大执行轮次，已停止", Map.of("maxRounds", maxRounds));
+        return null;
+    }
+
+    private LeaderDecision leaderReviewAndAdjust(TeamWorkspace team, Consumer<NlWorkflowEvent> sink) {
+        String leaderId = findLeaderId(team);
+        if (leaderId == null) {
+            return new LeaderDecision();
+        }
+
+        String stateJson = writeJsonSafe(teamRegistryService.getState(team.getId()));
+        String prompt = """
+                你是团队 leader，基于当前执行状态做一次协调决策。
+                返回 JSON：
+                {
+                  "needsUserInput": false,
+                  "userQuestion": "",
+                  "actions": [
+                    {
+                      "type": "ADD_TASK|SEND_MESSAGE|BROADCAST|NONE",
+                      "title": "",
+                      "description": "",
+                      "assigneeId": "",
+                      "assigneeName": "",
+                      "content": "",
+                      "toId": "",
+                      "toName": ""
+                    }
+                  ]
+                }
+                规则：
+                1) 仅返回 JSON。
+                2) 若需要用户确认方向/约束，needsUserInput=true 并给 userQuestion。
+                3) 能继续自动执行时优先给 actions，不要频繁中断。
+                4) 不要创建重复任务。
+                当前状态:
+                %s
+                """.formatted(stateJson);
+
+        String raw = llmRetryService.executeWithRetry(() -> chatClientBuilder.build().prompt().user(prompt).call().content());
+        String json = stripCodeFence(raw);
+        LeaderDecision decision;
+        try {
+            decision = objectMapper.readValue(json, LeaderDecision.class);
+        } catch (JsonProcessingException e) {
+            decision = new LeaderDecision();
+            decision.needsUserInput = false;
+            decision.actions = List.of();
+        }
+        if (decision.actions == null) {
+            decision.actions = List.of();
+        }
+
+        for (LeaderAction action : decision.actions) {
+            String type = safeUpper(action.type);
+            switch (type) {
+                case "ADD_TASK" -> {
+                    String assigneeId = resolveTeammateId(team, action.assigneeId, action.assigneeName);
+                    if (assigneeId == null || assigneeId.isBlank()) {
+                        assigneeId = selectExecutorForPlannedTask(team);
+                    }
+                    TeamTask task = teamRegistryService.createTask(
+                            team.getId(),
+                            valueOr(action.title, "leader 补充任务"),
+                            valueOr(action.description, "leader 根据执行进度动态补充"),
+                            List.of(),
+                            assigneeId
+                    );
+                    emit(sink, "LEADER_ADDED_TASK", "leader 动态新增任务",
+                            Map.of("taskId", task.getId(), "assigneeId", assigneeId));
+                }
+                case "SEND_MESSAGE" -> {
+                    String toId = resolveTeammateId(team, action.toId, action.toName);
+                    if (toId != null && !toId.isBlank()) {
+                        teamRegistryService.sendMessage(
+                                team.getId(),
+                                leaderId,
+                                toId,
+                                valueOr(action.content, "请按最新计划推进任务")
+                        );
+                        emit(sink, "LEADER_MESSAGE", "leader 发送定向协作消息",
+                                Map.of("to", toId));
+                    }
+                }
+                case "BROADCAST" -> {
+                    for (TeammateAgent teammate : team.getTeammates().values()) {
+                        if (!teammate.getId().equals(leaderId)) {
+                            teamRegistryService.sendMessage(
+                                    team.getId(),
+                                    leaderId,
+                                    teammate.getId(),
+                                    valueOr(action.content, "团队同步：请按最新计划执行")
+                            );
+                        }
+                    }
+                    emit(sink, "LEADER_BROADCAST", "leader 广播协作消息", null);
+                }
+                default -> {
+                    // NONE 或未知动作忽略
+                }
+            }
+        }
+        return decision;
     }
 
     private void executeSingleTask(
@@ -345,17 +458,13 @@ public class NlAgentTeamsService {
                     }
                   ]
                 }
-
                 规则：
                 1) 只返回 JSON，不要 markdown。
-                2) RUN_TASK 表示启动自动连续执行，直到任务全部完成或阻塞。
-                3) 规划任务(ADD_TASK)时尽量给 assigneeId 或 assigneeName。
-                4) 如果是纯问答，actions 可为空并使用 type=CHAT，或仅 assistantReply。
-
+                2) RUN_TASK 表示开始自动持续执行，直到全部任务结束或进入等待用户。
+                3) ADD_TASK 尽量指定 assigneeId/assigneeName。
                 当前团队ID：%s
                 会话历史：
                 %s
-
                 用户输入：
                 %s
                 """.formatted(teamId == null ? "" : teamId, String.join("\n", session.getHistory()), userMessage);
@@ -492,5 +601,22 @@ public class NlAgentTeamsService {
         } catch (JsonProcessingException e) {
             return "{}";
         }
+    }
+
+    private static class LeaderDecision {
+        public boolean needsUserInput;
+        public String userQuestion;
+        public List<LeaderAction> actions = List.of();
+    }
+
+    private static class LeaderAction {
+        public String type;
+        public String title;
+        public String description;
+        public String assigneeId;
+        public String assigneeName;
+        public String content;
+        public String toId;
+        public String toName;
     }
 }

@@ -9,20 +9,15 @@ import java.util.UUID;
 
 public class TeamWorkspace {
 
-    // 团队唯一标识
     private final String id;
-    // 团队名称
     private final String name;
-    // 团队总目标（由 Team Lead 定义）
     private final String objective;
-    // 团队成员列表（key: teammateId）
     private final Map<String, TeammateAgent> teammates;
-    // 共享任务列表（key: taskId）
     private final Map<String, TeamTask> tasks;
-    // 团队邮箱（成员间通信）
     private final List<TeamMessage> mailbox;
-    // 创建时间
     private final Instant createdAt;
+    // 计划版本号：每次计划变更（新增/修改/删除任务）自增
+    private long planVersion;
 
     public TeamWorkspace(String name, String objective) {
         this.id = UUID.randomUUID().toString();
@@ -32,6 +27,7 @@ public class TeamWorkspace {
         this.tasks = new LinkedHashMap<>();
         this.mailbox = new ArrayList<>();
         this.createdAt = Instant.now();
+        this.planVersion = 0L;
     }
 
     public String getId() {
@@ -60,5 +56,14 @@ public class TeamWorkspace {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public long getPlanVersion() {
+        return planVersion;
+    }
+
+    public long bumpPlanVersion() {
+        this.planVersion++;
+        return this.planVersion;
     }
 }

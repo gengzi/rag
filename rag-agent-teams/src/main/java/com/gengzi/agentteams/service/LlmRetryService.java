@@ -1,5 +1,7 @@
 package com.gengzi.agentteams.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
@@ -10,7 +12,7 @@ import java.util.function.Supplier;
 @Service
 public class LlmRetryService {
 
-    // 失败重试上限：总共最多调用 10 次
+    private static final Logger log = LoggerFactory.getLogger(LlmRetryService.class);
     private static final int MAX_ATTEMPTS = 10;
 
     public String executeWithRetry(Supplier<String> call) {
@@ -21,8 +23,10 @@ public class LlmRetryService {
             } catch (RuntimeException ex) {
                 last = ex;
                 if (!isRetryable(ex) || attempt >= MAX_ATTEMPTS) {
+                    log.error("LLM调用失败且停止重试，attempt={}/{}，error={}", attempt, MAX_ATTEMPTS, ex.getMessage());
                     throw ex;
                 }
+                log.warn("LLM调用失败，开始重试，attempt={}/{}，error={}", attempt, MAX_ATTEMPTS, ex.getMessage());
                 sleepBackoff(attempt);
             }
         }
@@ -38,7 +42,6 @@ public class LlmRetryService {
                 if (code == 429) {
                     return true;
                 }
-                // 某些网关会把额度耗尽映射为 403，这里按用户要求一并重试
                 if (code == 403 && containsExhaustedHint(responseException.getResponseBodyAsString())) {
                     return true;
                 }
@@ -63,7 +66,6 @@ public class LlmRetryService {
     }
 
     private void sleepBackoff(int attempt) {
-        // 300ms, 600ms, 900ms ... 最多 3000ms
         long millis = Math.min(300L * attempt, 3000L);
         try {
             Thread.sleep(millis);

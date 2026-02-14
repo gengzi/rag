@@ -5,6 +5,8 @@ import com.gengzi.agentteams.domain.TeamMessage;
 import com.gengzi.agentteams.domain.TeamTask;
 import com.gengzi.agentteams.domain.TeamWorkspace;
 import com.gengzi.agentteams.domain.TeammateAgent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,11 +21,10 @@ import java.util.stream.Collectors;
 @Service
 public class AgentTaskRunnerService {
 
-    // 团队状态与任务流转服务
+    private static final Logger log = LoggerFactory.getLogger(AgentTaskRunnerService.class);
+
     private final TeamRegistryService teamRegistryService;
-    // Spring AI ChatClient 构建器
     private final ChatClient.Builder chatClientBuilder;
-    // LLM 失败重试服务（429/额度耗尽场景）
     private final LlmRetryService llmRetryService;
 
     public AgentTaskRunnerService(
@@ -36,8 +37,9 @@ public class AgentTaskRunnerService {
         this.llmRetryService = llmRetryService;
     }
 
-    // 执行指定任务：组装上下文 -> 调模型 -> 回写任务结果
     public String runTask(String teamId, String taskId, String teammateIdOverride) {
+        log.info("开始执行任务，teamId={}，taskId={}，teammateIdOverride={}", teamId, taskId, teammateIdOverride);
+
         TeamWorkspace team = teamRegistryService.getTeam(teamId);
         TeamTask task;
         TeammateAgent teammate;
@@ -47,16 +49,16 @@ public class AgentTaskRunnerService {
             task = teamRegistryService.getTask(team, taskId);
             String teammateId = teammateIdOverride;
             if (task.getStatus() == TaskStatus.PENDING) {
-                // 允许未显式 claim 直接执行，但依赖必须已完成
                 if (!teamRegistryService.isTaskReady(team, task)) {
+                    log.warn("任务依赖未完成，无法执行，teamId={}，taskId={}", teamId, taskId);
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Task dependencies are not completed");
                 }
-                // 未指定执行人且任务未指派时，按“非 leader 抢任务”自动分配
                 if (teammateId == null || teammateId.isBlank()) {
                     teammateId = task.getAssigneeId();
                 }
                 if (teammateId == null || teammateId.isBlank()) {
                     teammateId = selectTeammateForClaim(team);
+                    log.info("未指定执行人，自动分配，teamId={}，taskId={}，assigneeId={}", teamId, taskId, teammateId);
                 }
                 teammate = teamRegistryService.getTeammate(team, teammateId);
                 task.setAssigneeId(teammate.getId());
@@ -66,11 +68,13 @@ public class AgentTaskRunnerService {
                     teammateId = task.getAssigneeId();
                 }
                 if (teammateId == null || teammateId.isBlank()) {
+                    log.warn("任务无指派人，无法执行，teamId={}，taskId={}", teamId, taskId);
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Task has no assignee, claim it first");
                 }
                 teammate = teamRegistryService.getTeammate(team, teammateId);
             }
             if (task.getStatus() != TaskStatus.IN_PROGRESS) {
+                log.warn("任务状态不允许执行，teamId={}，taskId={}，status={}", teamId, taskId, task.getStatus());
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Task is not executable in current state");
             }
 
@@ -90,6 +94,7 @@ public class AgentTaskRunnerService {
             teammate.getHistory().add("OUTPUT: " + output);
             teamRegistryService.completeTask(teamId, taskId, teammate.getId(), output);
         }
+        log.info("任务执行完成，teamId={}，taskId={}，assigneeId={}", teamId, taskId, teammate.getId());
         return output;
     }
 
@@ -111,8 +116,7 @@ public class AgentTaskRunnerService {
 
         String mailboxContext = unread.isEmpty()
                 ? "No unread teammate messages."
-                : unread.stream()
-                .map(message -> "From " + message.fromId() + ": " + message.content())
+                : unread.stream().map(message -> "From " + message.fromId() + ": " + message.content())
                 .collect(Collectors.joining("\n"));
 
         String historyContext = teammate.getHistory().stream()
@@ -133,15 +137,12 @@ public class AgentTaskRunnerService {
         if (all.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No teammates available");
         }
-
-        // leader 负责规划，优先让非 leader 执行任务
         List<TeammateAgent> executors = all.stream()
                 .filter(teammate -> !isLeaderRole(teammate.getRole()))
                 .toList();
         if (executors.isEmpty()) {
             executors = all;
         }
-
         Map<String, Long> inProgressCountByAssignee = team.getTasks().values().stream()
                 .filter(t -> t.getStatus() == TaskStatus.IN_PROGRESS)
                 .filter(t -> t.getAssigneeId() != null && !t.getAssigneeId().isBlank())

@@ -11,14 +11,22 @@ public class TeamStateResponse {
 
     @Schema(description = "团队ID", example = "5dbd90ef-1d42-4928-af76-6f0c0734ca00")
     private String id;
+
     @Schema(description = "团队名称", example = "Market Analysis Team")
     private String name;
+
     @Schema(description = "团队总目标", example = "调研北美 AI Agent 产品机会并输出结论")
     private String objective;
+
     @Schema(description = "团队创建时间", example = "2026-02-14T05:26:56.806Z")
     private Instant createdAt;
+
+    @Schema(description = "计划版本号（每次任务计划变更自增）", example = "12")
+    private long planVersion;
+
     @ArraySchema(arraySchema = @Schema(description = "团队成员列表"))
     private List<TeammateView> teammates;
+
     @ArraySchema(arraySchema = @Schema(description = "任务列表"))
     private List<TaskView> tasks;
 
@@ -54,6 +62,14 @@ public class TeamStateResponse {
         this.createdAt = createdAt;
     }
 
+    public long getPlanVersion() {
+        return planVersion;
+    }
+
+    public void setPlanVersion(long planVersion) {
+        this.planVersion = planVersion;
+    }
+
     public List<TeammateView> getTeammates() {
         return teammates;
     }
@@ -73,11 +89,14 @@ public class TeamStateResponse {
     public static class TeammateView {
         @Schema(description = "成员ID", example = "2ef75da3-2a92-4eb8-a5f7-c37cb13db341")
         private String id;
+
         @Schema(description = "成员名称", example = "Alice")
         private String name;
+
         @Schema(description = "成员角色", example = "Researcher")
         private String role;
-        @Schema(description = "成员实际使用模型（来自系统配置）", example = "claude-opus-4-6-thinking")
+
+        @Schema(description = "成员实际使用模型（来自系统配置）", example = "gemini-3-pro-low")
         private String model;
 
         public String getId() {
@@ -116,16 +135,22 @@ public class TeamStateResponse {
     public static class TaskView {
         @Schema(description = "任务ID", example = "9b7dd9b8-2fbe-4f6e-8a30-cc3652b02db2")
         private String id;
+
         @Schema(description = "任务标题", example = "收集竞品信息")
         private String title;
+
         @Schema(description = "任务描述", example = "列出 5 个竞品并总结定位")
         private String description;
+
         @ArraySchema(arraySchema = @Schema(description = "依赖任务ID列表"))
         private List<String> dependencies;
+
         @Schema(description = "任务状态", example = "IN_PROGRESS")
         private TaskStatus status;
+
         @Schema(description = "指派成员ID", example = "2ef75da3-2a92-4eb8-a5f7-c37cb13db341")
         private String assigneeId;
+
         @Schema(description = "任务结果", example = "竞品分析结果如下 ...")
         private String result;
 

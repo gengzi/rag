@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    // 可选：如果需要继承父工程的依赖管理
+    id 'io.spring.dependency-management'
+}
+
+
+group = 'com.gengzi'
+version = '0.0.1-SNAPSHOT'
+
+//java {
+//    toolchain {
+//        languageVersion = JavaLanguageVersion.of(17)
+//    }
+//}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+    dependencies {
+
+    }
+}
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

@@ -7,6 +7,7 @@ import com.gengzi.agentteams.domain.TeamMessage;
 import com.gengzi.agentteams.domain.TeamTask;
 import com.gengzi.agentteams.domain.TeamWorkspace;
 import com.gengzi.agentteams.domain.TeammateAgent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,12 +24,18 @@ public class TeamRegistryService {
 
     // 内存态 team 仓库（当前实现未持久化到数据库）
     private final Map<String, TeamWorkspace> teams = new ConcurrentHashMap<>();
+    // 统一模型配置：所有 agent 实际调用都使用该模型
+    private final String configuredModel;
+
+    public TeamRegistryService(@Value("${spring.ai.openai.chat.options.model:claude-opus-4-6-thinking}") String configuredModel) {
+        this.configuredModel = configuredModel;
+    }
 
     // 创建团队，并注册 teammate
     public TeamWorkspace createTeam(String name, String objective, List<CreateTeamRequest.TeammateSpec> teammateSpecs) {
         TeamWorkspace team = new TeamWorkspace(name, objective);
         for (CreateTeamRequest.TeammateSpec spec : teammateSpecs) {
-            TeammateAgent teammate = new TeammateAgent(spec.getName(), spec.getRole(), spec.getModel());
+            TeammateAgent teammate = new TeammateAgent(spec.getName(), spec.getRole(), configuredModel);
             team.getTeammates().put(teammate.getId(), teammate);
         }
         teams.put(team.getId(), team);

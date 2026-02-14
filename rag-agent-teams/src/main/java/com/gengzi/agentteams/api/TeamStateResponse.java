@@ -77,7 +77,7 @@ public class TeamStateResponse {
         private String name;
         @Schema(description = "成员角色", example = "Researcher")
         private String role;
-        @Schema(description = "成员默认模型", example = "gpt-4o-mini")
+        @Schema(description = "成员实际使用模型（来自系统配置）", example = "claude-opus-4-6-thinking")
         private String model;
 
         public String getId() {

@@ -3,11 +3,11 @@ spring:
     name: rag-agent-teams
   ai:
     openai:
-      base-url: http://127.0.0.1:8045/v1
+      base-url: http://127.0.0.1:8045
       api-key: sk-9e074dcbc80b473f8ae171b3a13bb257
       chat:
         options:
-          model: claude-opus-4-6-thinking
+          model: claude-sonnet-4-5
 server:
   port: 8080
 springdoc:

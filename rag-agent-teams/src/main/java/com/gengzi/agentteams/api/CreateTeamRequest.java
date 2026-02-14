@@ -55,8 +55,8 @@ public class CreateTeamRequest {
         @Schema(description = "成员职责角色", example = "Researcher", requiredMode = Schema.RequiredMode.REQUIRED)
         private String role;
 
-        @Schema(description = "成员默认模型", example = "gpt-4o-mini")
-        private String model = "gpt-4o-mini";
+        @Schema(description = "成员模型。服务端会统一覆盖为系统配置模型", example = "claude-opus-4-6-thinking")
+        private String model = "claude-opus-4-6-thinking";
 
         public String getName() {
             return name;

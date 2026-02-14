@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TeamRegistryServiceTest {
 
-    private final TeamRegistryService service = new TeamRegistryService();
+    private final TeamRegistryService service = new TeamRegistryService("claude-opus-4-6-thinking");
 
     @Test
     void shouldBlockClaimUntilDependenciesCompleted() {

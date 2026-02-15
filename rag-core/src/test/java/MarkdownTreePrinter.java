@@ -14,7 +14,7 @@ public class MarkdownTreePrinter {
         Parser parser = Parser.builder().build();
         Node document = parser.parse(markdown);
 
-        System.out.println("Markdown 抽象语法树结构：");
+        System.out.println("Markdown 抽象结构：");
         System.out.println("==========================");
         traverseTree(document, 0); // 从根节点开始遍历，初始层级为 0
     }

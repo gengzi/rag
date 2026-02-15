@@ -9,4 +9,5 @@ include 'rag-mcp'
 include 'rag-mcp-client'
 include 'rag-serach'
 include 'rag-graph'
+include 'rag-agent-teams'
 

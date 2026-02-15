@@ -146,6 +146,16 @@ public class TeamWorkspace {
     private final Map<String, TeamTask> tasks;           // 任务集合
     private final List<TeamMessage> mailbox;            // 共享邮箱
     private final Instant createdAt;          // 创建时间
+    private long planVersion;                 // 计划版本号（每次计划变更自增）
+}
+```
+
+**关键方法**:
+```java
+// 增加 planVersion 并返回新值
+public long bumpPlanVersion() {
+    this.planVersion++;
+    return this.planVersion;
 }
 ```
 
@@ -154,23 +164,48 @@ public class TeamWorkspace {
 - **不可变 ID**: 创建后不可修改，保证身份稳定性
 - **聚合内集合**: 使用 LinkedHashMap 保持插入顺序
 - **时间戳**: 使用 Instant 保证时区无关性
+- **计划版本追踪**: `planVersion` 字段追踪计划的变更历史，每次新增/更新/删除任务时自增，便于日志追踪和状态同步
 
 #### 3.1.2 TeamTask (任务实体)
 
-**职责**: 表示一个可执行的原子工作单元，支持依赖关系
+**职责**: 表示一个可执行的原子工作单元，支持依赖关系和动态修改
 
 ```java
 public class TeamTask {
     private final String id;                  // UUID
-    private final String title;               // 任务标题
-    private final String description;         // 详细描述
-    private final List<String> dependencyTaskIds;  // 前置依赖
+    private String title;                     // 任务标题（可修改）
+    private String description;                // 详细描述（可修改）
+    private final List<String> dependencyTaskIds;  // 前置依赖（可替换）
     private TaskStatus status;               // PENDING | IN_PROGRESS | COMPLETED
     private String assigneeId;               // 执行人ID
     private String result;                   // 执行结果
     private final Instant createdAt;
-    private Instant updatedAt;               // 状态变化时间戳
+    private Instant updatedAt;               // 状态变化时间戳（任何修改都更新）
 }
+```
+
+**关键方法**:
+```java
+// 更新标题（会更新 updatedAt）
+public void setTitle(String title) {
+    this.title = title;
+    this.updatedAt = Instant.now();
+}
+
+// 更新描述（会更新 updatedAt）
+public void setDescription(String description) {
+    this.description = description;
+    this.updatedAt = Instant.now();
+}
+
+// 替换依赖列表（会更新 updatedAt）
+public void replaceDependencies(List<String> dependencies) {
+    this.dependencyTaskIds.clear();
+    this.dependencyTaskIds.addAll(dependencies);
+    this.updatedAt = Instant.now();
+}
+
+// 其他 setter 方法也会自动更新 updatedAt
 ```
 
 **状态机转换**:
@@ -260,6 +295,14 @@ public class TeamRegistryService {
     public TeamTask createTask(String teamId, String title, String description,
                              List<String> dependencies, String assigneeId);
 
+    // 更新任务计划（仅 PENDING 状态任务可更新）
+    public TeamTask updateTaskPlan(String teamId, String taskId,
+                                  String title, String description,
+                                  List<String> dependencies, String assigneeId);
+
+    // 删除任务计划（仅 PENDING 状态任务可删除，且不能被其他活跃任务引用）
+    public void deleteTaskPlan(String teamId, String taskId);
+
     // 认领任务（依赖检查 + 状态转换）
     public TeamTask claimTask(String teamId, String taskId, String teammateId);
 
@@ -280,8 +323,31 @@ public class TeamRegistryService {
 
     // 判断任务是否就绪（依赖全部完成）
     public boolean isTaskReady(TeamWorkspace team, TeamTask task);
+
+    // 确保团队有 Leader（如果没有会自动创建）
+    private void ensureLeaderPresent(TeamWorkspace team);
 }
 ```
+
+**新增功能说明**:
+
+1. **任务计划更新** (`updateTaskPlan`):
+   - 只能更新状态为 PENDING 的任务
+   - 支持修改标题、描述、依赖关系和执行人
+   - 会校验依赖任务是否存在
+   - 防止任务自依赖
+   - 更新后自动增加 `planVersion`
+
+2. **任务计划删除** (`deleteTaskPlan`):
+   - 只能删除状态为 PENDING 的任务
+   - 检查任务是否被其他活跃任务引用
+   - 删除后自动增加 `planVersion`
+
+3. **自动 Leader 创建** (`ensureLeaderPresent`):
+   - 在创建团队和获取团队时自动调用
+   - 检测是否存在 leader 角色（包含 leader/lead/manager/planner/orchestrator 关键词）
+   - 如果没有 leader，自动创建 "Team Leader" 角色
+   - 记录日志便于追踪
 
 **并发控制设计**:
 
@@ -586,7 +652,13 @@ flowchart TD
     CreateTeam --> AddTasks[ADD_TASK x N]
     AddTasks --> AutoRun[RUN_TASK]
 
-    AutoRun --> CheckEnd{所有任务完成?}
+    AutoRun --> LeaderReview[Leader 审查与调整]
+
+    LeaderReview --> NeedInput{需要用户输入?}
+    NeedInput -->|是| WaitInput[WAIT_USER_INPUT]
+    WaitInput --> Pause([暂停等待用户回复])
+
+    NeedInput -->|否| CheckEnd{所有任务完成?}
 
     CheckEnd -->|是| Done([结束])
     CheckEnd -->|否| FindReady[查找就绪任务]
@@ -598,13 +670,32 @@ flowchart TD
 
     ReadyList -->|是| ExecuteTasks[遍历执行任务]
     ExecuteTasks --> Broadcast[Leader 广播摘要]
-    Broadcast --> NextRound[下一轮]
-    NextRound --> CheckEnd
+    Broadcast --> NextRound[下一轮，最多 200 轮]
+    NextRound --> LeaderReview
 
     style Done fill:#90EE90
     style Blocked fill:#FFB6C1
     style ExecuteTasks fill:#87CEEB
+    style Pause fill:#FFA500
+    style WaitInput fill:#FFD700
 ```
+
+**Leader 动态调整能力**:
+
+每一轮执行前，Leader 会审查当前状态并可以执行以下操作：
+
+1. **ADD_TASK**: 动态添加新任务
+2. **UPDATE_TASK**: 修改待执行任务的标题、描述、依赖或执行人
+3. **DELETE_TASK**: 删除不再需要的任务
+4. **SEND_MESSAGE**: 向特定成员发送消息
+5. **BROADCAST**: 向所有成员广播消息
+6. **请求用户输入**: 当遇到需要决策的情况时，暂停执行并等待用户回复
+
+**执行循环特点**:
+- **最大轮次**: 200 轮（防止无限循环）
+- **自动终止**: 所有任务完成或无任务可执行
+- **阻塞检测**: 所有待执行任务依赖未满足时停止
+- **用户介入**: 支持在执行过程中暂停并等待用户输入
 
 ### 4.4 消息传递与消费流程
 
@@ -1209,6 +1300,15 @@ stateDiagram-v2
 
 ---
 
-**文档版本**: 1.0.0
-**最后更新**: 2025-02-14
+**文档版本**: 1.1.0
+**最后更新**: 2025-02-15
+**更新内容**:
+- 新增 TeamWorkspace.planVersion 计划版本追踪
+- 新增 TeamTask 动态修改能力（title, description, dependencies）
+- 新增 TeamRegistryService.updateTaskPlan() 和 deleteTaskPlan() 方法
+- 新增自动 Leader 创建机制（ensureLeaderPresent）
+- 更新自然语言接口的 Leader 动态调整能力（最多 200 轮）
+- 新增用户输入暂停机制（needsUserInput, userQuestion）
+- 更新各种流程图和设计模式说明
+
 **维护者**: RAG Agent Teams Team

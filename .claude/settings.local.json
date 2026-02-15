@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(if not exist \"F:\\\\面试\\\\项目\" mkdir \"F:\\\\面试\\\\项目\")",
+      "Bash(cmd:*)",
+      "Bash(findstr:*)",
+      "Bash(if:*)",
+      "Bash(then mkdir -p \"F:/面试/项目/数据开放平台\")",
+      "Bash(fi:*)"
     ],
     "deny": [],
     "ask": []

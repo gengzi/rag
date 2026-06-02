@@ -17,6 +17,18 @@
 - 形成可演进的分层架构：基础能力沉淀在 `rag-core`，业务编排与场景落在 `rag-chat` / `rag-agent` / `rag-graph` / `rag-mcp`。
 - 支持从 MVP 到生产化的持续演化（模块化拆分、可替换模型、可替换向量后端、可替换编排链路）。
 
+## 1.1 为什么这个项目对生态有价值
+
+当前大量 RAG / Agent 示例偏 Python 优先或 Demo 优先，而企业后端团队往往以 Java / Spring 技术栈为主。本项目希望补齐 Java / Spring AI 生态中的工程化参考实现，不只是演示“RAG 能跑”，而是展示企业应用中更常见的模块拆分、SSE 流式输出、消息持久化、会话恢复、Agent 路由、GraphRAG、MCP 工具扩展、长期记忆和多 Agent 协作等完整链路。
+
+因此，本项目的价值不只体现在当前 Star 或下载量，更体现在为 Java 后端团队提供一套可运行、可拆解、可二次开发的 RAG / Agent 平台工程模板。
+
+## 1.2 开源维护与路线
+
+- 架构总览与图示：`docs/ARCHITECTURE_OVERVIEW.md`
+- 路线图：`ROADMAP.md`
+- 贡献指南：`CONTRIBUTING.md`
+
 ## 2. 仓库结构与工程关系
 
 ### 2.1 模块总览
@@ -338,6 +350,9 @@
 
 ## 10. 深入文档索引
 
+- `docs/ARCHITECTURE_OVERVIEW.md`
+- `ROADMAP.md`
+- `CONTRIBUTING.md`
 - `rag-agent-teams/docs/DESIGN.md`
 - `rag-agent-teams/docs/ARCHITECTURE.md`
 - `rag-graph/docs/SYSTEM_DESIGN.md`

@@ -9,6 +9,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="./docs/images/architecture-overview.svg" alt="RAG Platform Architecture Overview" width="100%">
+</p>
+
 Default language: Chinese. Click the button above to switch.
 
 默认语言：中文。点击上方按钮切换语言。

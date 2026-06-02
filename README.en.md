@@ -9,6 +9,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="./docs/images/architecture-overview.svg" alt="RAG Platform Architecture Overview" width="100%">
+</p>
+
 ## Overview
 
 This repository is an Apache-2.0 open-source, Spring AI based multi-module RAG and Agent platform for the Java ecosystem.

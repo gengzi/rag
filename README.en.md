@@ -11,13 +11,15 @@
 
 ## Overview
 
-This repository is a multi-module Spring AI based RAG platform with:
+This repository is an Apache-2.0 open-source, Spring AI based multi-module RAG and Agent platform for the Java ecosystem.
 
-- Knowledge base ingestion and retrieval
-- Streaming chat and agent routing
-- Graph-enhanced retrieval (Neo4j)
-- MCP server/client based memory/tool integration
-- Team-style multi-agent orchestration demo
+It provides an engineering-oriented reference implementation for enterprise AI applications, including knowledge ingestion, vector retrieval, SSE streaming chat, conversation persistence, Agent routing, graph workflow execution, GraphRAG with Neo4j, MCP server/client integration, long-term memory, and team-style multi-agent collaboration.
+
+## Why This Project Matters
+
+Most RAG and Agent examples are Python-first or demo-oriented. `gengzi/rag` focuses on Java / Spring AI backend engineering and shows how to organize RAG, Agent workflows, memory, tools, graph retrieval, streaming events, and persistence in a modular system.
+
+The goal is to help Java backend teams build production-oriented AI applications without starting from scattered demos.
 
 ## Modules
 
@@ -39,8 +41,9 @@ This repository is a multi-module Spring AI based RAG platform with:
 - SSE-first interaction model for chat/agent streams.
 - Retrieval isolation by knowledge-base scope (`kbId` filtering).
 - Redis-based stream replay and distributed lock for conversation consistency.
-- GraphRAG-ready model: ES vector retrieval + Neo4j relationship graph.
+- GraphRAG-ready model: ES/OpenSearch vector retrieval + Neo4j relationship graph.
 - MCP-native tool/memory extension path.
+- Multi-agent team collaboration sample with tasks, messages, dependencies, and workflow events.
 
 ## Quick Start
 
@@ -58,10 +61,17 @@ This repository is a multi-module Spring AI based RAG platform with:
 ## Detailed Docs
 
 - Chinese full project architecture: `README.zh-CN.md`
+- Architecture overview with diagrams: `docs/ARCHITECTURE_OVERVIEW.md`
+- Roadmap: `ROADMAP.md`
+- Contribution guide: `CONTRIBUTING.md`
 - Agent Teams design: `rag-agent-teams/docs/DESIGN.md`
 - Agent Teams architecture: `rag-agent-teams/docs/ARCHITECTURE.md`
 - Graph system design: `rag-graph/docs/SYSTEM_DESIGN.md`
 
+## Current Project Stage
+
+The project is in an early engineering stage. Public adoption metrics are still small, but the repository is actively evolving as a Java / Spring AI reference implementation for production-oriented RAG and Agent systems.
+
 ## Security Note
 
-Some `application*.yml` files currently include example secrets/password fields. Replace them before real deployment.
+Some `application*.yml` files currently include example secret/password fields. Replace them before real deployment.
